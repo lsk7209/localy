@@ -1,0 +1,68 @@
+name = "localy-workers"
+main = "workers/index.ts"
+compatibility_date = "2025-01-15"
+
+# D1 Database
+[[d1_databases]]
+binding = "DB"
+database_name = "localy-db"
+database_id = "" # 프로덕션 배포 시 설정 필요
+
+# KV Namespaces
+[[kv_namespaces]]
+binding = "SETTINGS"
+id = "" # 프로덕션 배포 시 설정 필요
+preview_id = "" # 로컬 개발용
+
+[[kv_namespaces]]
+binding = "FETCH_FAIL_QUEUE"
+id = "" # 프로덕션 배포 시 설정 필요
+preview_id = "" # 로컬 개발용
+
+[[kv_namespaces]]
+binding = "DEAD_FAIL_QUEUE"
+id = "" # 프로덕션 배포 시 설정 필요
+preview_id = "" # 로컬 개발용
+
+[[kv_namespaces]]
+binding = "SITEMAP"
+id = "" # 프로덕션 배포 시 설정 필요
+preview_id = "" # 로컬 개발용
+
+[[kv_namespaces]]
+binding = "CACHE"
+id = "" # 프로덕션 배포 시 설정 필요
+preview_id = "" # 로컬 개발용
+
+[[kv_namespaces]]
+binding = "RATE_LIMIT"
+id = "" # 프로덕션 배포 시 설정 필요
+preview_id = "" # 로컬 개발용
+
+# Queues
+[[queues.producers]]
+queue = "fetch-queue"
+binding = "FETCH_QUEUE"
+
+[[queues.consumers]]
+queue = "fetch-queue"
+max_batch_size = 10
+max_batch_timeout = 30
+
+# Cron Triggers
+[triggers]
+crons = [
+  "0 * * * *",      # 초기 수집 (매 시간)
+  "30 * * * *",     # 증분 수집 (매 시간 30분)
+  "*/10 * * * *",   # 정규화 워커 (10분마다)
+  "*/15 * * * *",   # 재시도 워커 (15분마다)
+  "*/20 * * * *",   # AI 생성 워커 (20분마다)
+  "0 */3 * * *"     # 발행 워커 (3시간마다)
+]
+
+# Environment Variables
+[vars]
+# API Keys는 wrangler secret put으로 설정
+# OPENAI_API_KEY
+# PUBLIC_DATA_API_KEY
+
