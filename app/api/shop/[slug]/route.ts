@@ -5,6 +5,7 @@ import { eq } from 'drizzle-orm';
 import { cache } from '@/workers/utils/cache';
 import { checkAPIRateLimit } from '@/workers/utils/rate-limit';
 import { validateSlug } from '@/workers/utils/validation';
+import { getCloudflareEnv } from '@/app/api/types';
 
 /**
  * 상가 상세 정보 API
@@ -12,7 +13,7 @@ import { validateSlug } from '@/workers/utils/validation';
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { slug: string } }
+  { params }: { params: Promise<{ slug: string }> }
   ) {
     try {
       const env = getCloudflareEnv();
@@ -49,7 +50,7 @@ export async function GET(
       }
 
       const db = drizzle(env.DB, { schema });
-      const { slug } = params;
+      const { slug } = await params;
 
       // Slug 검증
       if (!validateSlug(slug)) {
@@ -93,7 +94,8 @@ export async function GET(
       }
     }
 
-    return NextResponse.json({
+    // 응답 데이터 생성
+    const responseData = {
       id: place.id,
       slug: meta.slug,
       name: place.name,
@@ -110,17 +112,18 @@ export async function GET(
       licenseDate: place.licenseDate,
       summary: meta.aiSummary,
       faq,
-          lastPublishedAt: meta.lastPublishedAt,
-        };
+      lastPublishedAt: meta.lastPublishedAt,
+    };
 
-        // 캐시 저장
-        await cache.shopDetail.set(env, slug, responseData);
+    // 캐시 저장
+    await cache.shopDetail.set(env, slug, responseData);
 
-        return NextResponse.json(responseData);
+    return NextResponse.json(responseData);
       } catch (error) {
+    const { slug: errorSlug } = await params;
     console.error('Failed to fetch store:', {
       error: error instanceof Error ? error.message : String(error),
-      slug: params.slug,
+      slug: errorSlug,
       timestamp: new Date().toISOString(),
     });
     return NextResponse.json(

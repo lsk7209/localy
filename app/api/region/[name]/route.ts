@@ -12,7 +12,7 @@ import { getCloudflareEnv } from '../../types';
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { name: string } }
+  { params }: { params: Promise<{ name: string }> }
 ) {
   try {
     const env = getCloudflareEnv();
@@ -25,7 +25,8 @@ export async function GET(
     }
 
     const db = drizzle(env.DB, { schema });
-    const rawRegionName = decodeURIComponent(params.name);
+    const { name } = await params;
+    const rawRegionName = decodeURIComponent(name);
     const regionName = sanitizeString(rawRegionName);
 
     // 지역명 검증
@@ -115,9 +116,10 @@ export async function GET(
 
       return NextResponse.json(responseData);
   } catch (error) {
+    const { name: errorName } = await params;
     console.error('Failed to fetch region stats:', {
       error: error instanceof Error ? error.message : String(error),
-      regionName: params.name,
+      regionName: errorName,
       timestamp: new Date().toISOString(),
     });
     return NextResponse.json(

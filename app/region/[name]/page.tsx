@@ -31,8 +31,9 @@ interface RegionData {
 /**
  * 동적 메타데이터 생성 함수
  */
-export async function generateMetadata({ params }: { params: { name: string } }): Promise<Metadata> {
-  const regionName = decodeURIComponent(params.name);
+export async function generateMetadata({ params }: { params: Promise<{ name: string }> }): Promise<Metadata> {
+  const { name } = await params;
+  const regionName = decodeURIComponent(name);
   const title = `${regionName} 지역 상가 정보 | LOCARRY`;
   const description = `${regionName} 지역의 상가 정보와 통계를 확인하세요.`;
 
@@ -64,15 +65,16 @@ export async function generateMetadata({ params }: { params: { name: string } })
 export default async function RegionHubPage({
   params,
 }: {
-  params: { name: string };
+  params: Promise<{ name: string }>;
 }) {
-  const regionName = decodeURIComponent(params.name);
+  const { name } = await params;
+  const regionName = decodeURIComponent(name);
 
   // API에서 지역 통계 가져오기
   let regionData: RegionData;
   try {
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
-    const response = await fetch(`${baseUrl}/api/region/${encodeURIComponent(params.name)}`, {
+    const response = await fetch(`${baseUrl}/api/region/${encodeURIComponent(name)}`, {
       next: { revalidate: 3600 }, // 1시간마다 재검증
     });
 

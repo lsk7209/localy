@@ -43,10 +43,11 @@ interface StoreData {
 /**
  * 동적 메타데이터 생성 함수
  */
-export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   try {
+    const { slug } = await params;
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
-    const response = await fetch(`${baseUrl}/api/shop/${params.slug}`, {
+    const response = await fetch(`${baseUrl}/api/shop/${slug}`, {
       next: { revalidate: 3600 },
     });
 
@@ -83,7 +84,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
         description,
       },
       alternates: {
-        canonical: `/shop/${params.slug}`,
+        canonical: `/shop/${slug}`,
       },
       ...(storeData.category && {
         keywords: [storeData.category, storeData.sido || '', storeData.sigungu || '', storeData.dong || '', '상가', '상권'].filter(Boolean).join(', '),
@@ -104,9 +105,9 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 export default async function ShopDetailPage({
   params,
 }: {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 }) {
-  const { slug } = params;
+  const { slug } = await params;
 
   // API에서 상가 정보 가져오기
   let storeData: StoreData;
