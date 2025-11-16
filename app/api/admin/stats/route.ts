@@ -54,13 +54,15 @@ export async function GET(request: NextRequest) {
       .get();
 
     // 오늘 발행 페이지 수
+    // todayStart는 이미 초 단위이므로 Date 객체로 변환
+    const todayStartDate = new Date(todayStart * 1000);
     const todayPublished = await db
       .select({ count: count() })
       .from(schema.bizMeta)
       .where(
         and(
           isNotNull(schema.bizMeta.lastPublishedAt),
-          gte(schema.bizMeta.lastPublishedAt, todayStart)
+          gte(schema.bizMeta.lastPublishedAt, todayStartDate)
         )
       )
       .get();
@@ -85,13 +87,15 @@ export async function GET(request: NextRequest) {
       .get();
 
     // 최근 7일 발행량
+    // sevenDaysAgo는 이미 초 단위이므로 Date 객체로 변환
+    const sevenDaysAgoDate = new Date(sevenDaysAgo * 1000);
     const publishedLast7Days = await db
       .select({ count: count() })
       .from(schema.bizMeta)
       .where(
         and(
           isNotNull(schema.bizMeta.lastPublishedAt),
-          gte(schema.bizMeta.lastPublishedAt, sevenDaysAgo)
+          gte(schema.bizMeta.lastPublishedAt, sevenDaysAgoDate)
         )
       )
       .get();
@@ -127,7 +131,7 @@ export async function GET(request: NextRequest) {
       publishedLast7Days: publishedLast7Days?.count || 0,
       totalRegions: (totalRegions?.count as number) || 0,
       lastUpdated: lastUpdatedResult?.lastPublishedAt
-        ? new Date(lastUpdatedResult.lastPublishedAt * 1000).toISOString()
+        ? new Date((lastUpdatedResult.lastPublishedAt as unknown as number) * 1000).toISOString()
         : null,
     });
   } catch (error) {

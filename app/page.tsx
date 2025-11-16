@@ -88,67 +88,6 @@ export default function HomePage() {
             </Typography>
           </Box>
 
-          {/* 통계 카드 */}
-          {loading ? (
-            <Box sx={{ mb: 4 }}>
-              <LoadingSpinner message="통계 데이터를 불러오는 중..." />
-            </Box>
-          ) : error ? (
-            <Alert severity="error" sx={{ mb: 4, maxWidth: 600, mx: 'auto' }}>
-              {error}
-            </Alert>
-          ) : stats ? (
-            <Grid container spacing={3} sx={{ mb: 6 }}>
-              <Grid item xs={12} sm={6} md={3}>
-                <Card>
-                  <CardContent>
-                    <Typography variant="h4" sx={{ fontWeight: 700, mb: 1 }}>
-                      {stats.totalStores.toLocaleString()}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      전체 상가
-                    </Typography>
-                  </CardContent>
-                </Card>
-              </Grid>
-              <Grid item xs={12} sm={6} md={3}>
-                <Card>
-                  <CardContent>
-                    <Typography variant="h4" sx={{ fontWeight: 700, mb: 1 }}>
-                      {stats.publishedStores.toLocaleString()}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      발행된 상가
-                    </Typography>
-                  </CardContent>
-                </Card>
-              </Grid>
-              <Grid item xs={12} sm={6} md={3}>
-                <Card>
-                  <CardContent>
-                    <Typography variant="h4" sx={{ fontWeight: 700, mb: 1 }}>
-                      {stats.totalRegions.toLocaleString()}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      지역 수
-                    </Typography>
-                  </CardContent>
-                </Card>
-              </Grid>
-              <Grid item xs={12} sm={6} md={3}>
-                <Card>
-                  <CardContent>
-                    <Typography variant="h6" sx={{ fontWeight: 700, mb: 1, fontSize: '1rem' }}>
-                      {stats.lastUpdated ? new Date(stats.lastUpdated).toLocaleDateString('ko-KR') : '-'}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      최종 업데이트
-                    </Typography>
-                  </CardContent>
-                </Card>
-              </Grid>
-            </Grid>
-          ) : null}
 
           {/* 지역 선택 */}
           <Box sx={{ mt: 4, maxWidth: 400, mx: 'auto' }}>

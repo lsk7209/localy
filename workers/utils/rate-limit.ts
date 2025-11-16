@@ -1,4 +1,5 @@
 import type { Env } from '../types';
+import type { KVNamespace } from '@cloudflare/workers-types';
 import { safeParseInt } from './validation';
 import { logger } from './logger';
 
@@ -44,7 +45,7 @@ export interface RateLimitResult {
  * Rate Limit 체크 및 증가
  */
 export async function checkRateLimit(
-  env: Env,
+  env: { RATE_LIMIT?: KVNamespace },
   prefix: string,
   identifier: string,
   config: { window: number; maxRequests: number }
@@ -131,7 +132,7 @@ export function getClientIP(request: Request): string {
  * API Rate Limit 체크
  */
 export async function checkAPIRateLimit(
-  env: Env,
+  env: { RATE_LIMIT?: KVNamespace },
   request: Request
 ): Promise<RateLimitResult> {
   const identifier = getClientIP(request);
@@ -142,7 +143,7 @@ export async function checkAPIRateLimit(
  * Admin API Rate Limit 체크
  */
 export async function checkAdminAPIRateLimit(
-  env: Env,
+  env: { RATE_LIMIT?: KVNamespace },
   request: Request
 ): Promise<RateLimitResult> {
   const identifier = getClientIP(request);
@@ -153,7 +154,7 @@ export async function checkAdminAPIRateLimit(
  * Revalidate API Rate Limit 체크
  */
 export async function checkRevalidateAPIRateLimit(
-  env: Env,
+  env: { RATE_LIMIT?: KVNamespace },
   request: Request
 ): Promise<RateLimitResult> {
   const identifier = getClientIP(request);

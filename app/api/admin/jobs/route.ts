@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getJobMetrics, getAggregatedMetrics } from '@/workers/utils/monitoring';
 import { checkAdminAPIRateLimit, createRateLimitResponse } from '@/workers/utils/rate-limit';
 import { getCloudflareEnv } from '../../types';
 

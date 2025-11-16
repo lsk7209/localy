@@ -1,17 +1,20 @@
 import type { Env, SettingsKey, FailQueueMessage } from '../types';
+import type { KVNamespace } from '@cloudflare/workers-types';
 import { KV_BATCH_LIMITS } from './performance';
 
 /**
  * 설정 값 읽기
  */
-export async function getSetting(env: Env, key: SettingsKey): Promise<string | null> {
+export async function getSetting(env: { SETTINGS?: KVNamespace }, key: SettingsKey): Promise<string | null> {
+  if (!env.SETTINGS) return null;
   return await env.SETTINGS.get(key);
 }
 
 /**
  * 설정 값 저장
  */
-export async function setSetting(env: Env, key: SettingsKey, value: string): Promise<void> {
+export async function setSetting(env: { SETTINGS?: KVNamespace }, key: SettingsKey, value: string): Promise<void> {
+  if (!env.SETTINGS) return;
   await env.SETTINGS.put(key, value);
 }
 
@@ -19,14 +22,19 @@ export async function setSetting(env: Env, key: SettingsKey, value: string): Pro
  * 여러 설정 값 일괄 읽기 (배치 최적화)
  */
 export async function getSettingsBatch(
-  env: Env,
+  env: { SETTINGS?: KVNamespace },
   keys: SettingsKey[]
 ): Promise<Map<SettingsKey, string | null>> {
   const results = new Map<SettingsKey, string | null>();
   
+  if (!env.SETTINGS) {
+    keys.forEach((key) => results.set(key, null));
+    return results;
+  }
+  
   // KV는 배치 읽기를 직접 지원하지 않으므로 Promise.all로 병렬 처리
   const promises = keys.map(async (key) => {
-    const value = await env.SETTINGS.get(key);
+    const value = await env.SETTINGS!.get(key);
     return { key, value };
   });
   

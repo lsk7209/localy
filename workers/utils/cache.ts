@@ -1,4 +1,5 @@
 import type { Env } from '../types';
+import type { KVNamespace } from '@cloudflare/workers-types';
 import { KV_BATCH_LIMITS } from './performance';
 
 /**
@@ -31,7 +32,7 @@ interface CacheEntry<T> {
  * 캐시에 데이터 저장
  */
 export async function setCache<T>(
-  env: Env,
+  env: { CACHE?: KVNamespace },
   key: string,
   data: T,
   ttl: number
@@ -64,7 +65,7 @@ export async function setCache<T>(
 /**
  * 캐시에서 데이터 가져오기
  */
-export async function getCache<T>(env: Env, key: string): Promise<T | null> {
+export async function getCache<T>(env: { CACHE?: KVNamespace }, key: string): Promise<T | null> {
   if (!env.CACHE) {
     return null;
   }
@@ -100,7 +101,7 @@ export async function getCache<T>(env: Env, key: string): Promise<T | null> {
 /**
  * 캐시 삭제
  */
-export async function deleteCache(env: Env, key: string): Promise<void> {
+export async function deleteCache(env: { CACHE?: KVNamespace }, key: string): Promise<void> {
   if (!env.CACHE) {
     return;
   }
@@ -120,7 +121,7 @@ export async function deleteCache(env: Env, key: string): Promise<void> {
  * 패턴으로 캐시 삭제 (예: 특정 prefix의 모든 캐시)
  * Cloudflare KV 배치 처리 최적화 적용
  */
-export async function deleteCachePattern(env: Env, pattern: string): Promise<void> {
+export async function deleteCachePattern(env: { CACHE?: KVNamespace }, pattern: string): Promise<void> {
   if (!env.CACHE) {
     return;
   }
@@ -161,15 +162,15 @@ export const cache = {
    * 상가 목록 캐시
    */
   shopList: {
-    get: (env: Env, params: { search?: string; category?: string; region?: string; page: number; sortBy: string }) => {
+    get: (env: { CACHE?: KVNamespace }, params: { search?: string; category?: string; region?: string; page: number; sortBy: string }) => {
       const key = getCacheKey('shop:list', JSON.stringify(params));
       return getCache(env, key);
     },
-    set: (env: Env, params: { search?: string; category?: string; region?: string; page: number; sortBy: string }, data: unknown) => {
+    set: (env: { CACHE?: KVNamespace }, params: { search?: string; category?: string; region?: string; page: number; sortBy: string }, data: unknown) => {
       const key = getCacheKey('shop:list', JSON.stringify(params));
       return setCache(env, key, data, CACHE_TTL.SHOP_LIST);
     },
-    delete: (env: Env) => {
+    delete: (env: { CACHE?: KVNamespace }) => {
       return deleteCachePattern(env, 'shop:list:');
     },
   },
@@ -178,15 +179,15 @@ export const cache = {
    * 상가 상세 캐시
    */
   shopDetail: {
-    get: (env: Env, slug: string) => {
+    get: (env: { CACHE?: KVNamespace }, slug: string) => {
       const key = getCacheKey('shop:detail', slug);
       return getCache(env, key);
     },
-    set: (env: Env, slug: string, data: unknown) => {
+    set: (env: { CACHE?: KVNamespace }, slug: string, data: unknown) => {
       const key = getCacheKey('shop:detail', slug);
       return setCache(env, key, data, CACHE_TTL.SHOP_DETAIL);
     },
-    delete: (env: Env, slug: string) => {
+    delete: (env: { CACHE?: KVNamespace }, slug: string) => {
       const key = getCacheKey('shop:detail', slug);
       return deleteCache(env, key);
     },
@@ -196,15 +197,15 @@ export const cache = {
    * 지역 통계 캐시
    */
   regionStats: {
-    get: (env: Env, regionName: string) => {
+    get: (env: { CACHE?: KVNamespace }, regionName: string) => {
       const key = getCacheKey('region:stats', regionName);
       return getCache(env, key);
     },
-    set: (env: Env, regionName: string, data: unknown) => {
+    set: (env: { CACHE?: KVNamespace }, regionName: string, data: unknown) => {
       const key = getCacheKey('region:stats', regionName);
       return setCache(env, key, data, CACHE_TTL.REGION_STATS);
     },
-    delete: (env: Env, regionName: string) => {
+    delete: (env: { CACHE?: KVNamespace }, regionName: string) => {
       const key = getCacheKey('region:stats', regionName);
       return deleteCache(env, key);
     },
@@ -214,15 +215,15 @@ export const cache = {
    * 관리자 통계 캐시
    */
   adminStats: {
-    get: (env: Env) => {
+    get: (env: { CACHE?: KVNamespace }) => {
       const key = getCacheKey('admin:stats');
       return getCache(env, key);
     },
-    set: (env: Env, data: unknown) => {
+    set: (env: { CACHE?: KVNamespace }, data: unknown) => {
       const key = getCacheKey('admin:stats');
       return setCache(env, key, data, CACHE_TTL.ADMIN_STATS);
     },
-    delete: (env: Env) => {
+    delete: (env: { CACHE?: KVNamespace }) => {
       const key = getCacheKey('admin:stats');
       return deleteCache(env, key);
     },
