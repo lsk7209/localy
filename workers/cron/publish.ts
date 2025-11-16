@@ -109,18 +109,19 @@ export async function handlePublish(
           }
         }
 
-        // slug와 발행 시간을 하나의 UPDATE로 통합 (D1 쿼리 수 최적화)
-        const updateData: { slug?: string; lastPublishedAt: number } = {
-          lastPublishedAt: Math.floor(Date.now() / 1000),
-        };
-        if (!meta.slug && slug) {
-          updateData.slug = slug;
-        }
+          // slug와 발행 시간을 하나의 UPDATE로 통합 (D1 쿼리 수 최적화)
+          // Note: Drizzle ORM의 SQLite 타입 추론 제한으로 인해 'as any' 캐스팅 필요
+          const updateData: { slug?: string; lastPublishedAt: number } = {
+            lastPublishedAt: Math.floor(Date.now() / 1000),
+          };
+          if (!meta.slug && slug) {
+            updateData.slug = slug;
+          }
 
-        await db
-          .update(bizMeta)
-          .set(updateData)
-          .where(eq(bizMeta.bizId, meta.bizId));
+          await db
+            .update(bizMeta)
+            .set(updateData as any)
+            .where(eq(bizMeta.bizId, meta.bizId));
 
         // Next.js ISR on-demand revalidate 호출 (타임아웃 설정)
         if (nextjsUrl && revalidateApiKey && slug) {
@@ -184,7 +185,7 @@ export async function handlePublish(
       } catch (error) {
         logger.error('Failed to publish store', {
           bizId: meta.bizId,
-          slug,
+          slug: meta.slug || 'unknown',
         }, error instanceof Error ? error : new Error(String(error)));
         // 개별 실패는 로깅만 하고 계속 진행
       }

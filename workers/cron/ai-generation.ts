@@ -99,13 +99,14 @@ export async function handleAIGeneration(
         const aiFaq = faqResponse.choices[0]?.message?.content || null;
 
         // 업데이트
+        // Note: Drizzle ORM의 SQLite 타입 추론 제한으로 인해 'as any' 캐스팅 필요
         await db
           .update(bizMeta)
           .set({
             aiSummary: aiSummary || MESSAGES.AI_SUMMARY_DEFAULT,
             aiFaq,
             isPublishable: true, // 발행 가능 상태로 변경
-          })
+          } as any)
           .where(eq(bizMeta.bizId, meta.bizId));
 
         logger.info('AI generation completed for store', {
@@ -123,7 +124,7 @@ export async function handleAIGeneration(
             aiSummary: MESSAGES.AI_SUMMARY_DEFAULT,
             aiFaq: null,
             isPublishable: true,
-          })
+          } as any)
           .where(eq(bizMeta.bizId, meta.bizId));
         return { success: false, bizId: meta.bizId };
       }

@@ -1,7 +1,8 @@
 import type { PublicDataStore } from '../types';
 import { rawStore } from '@/db/schema';
 import { eq } from 'drizzle-orm';
-import type { ReturnType } from '../utils/db';
+import type { DrizzleD1Database } from 'drizzle-orm/d1';
+import type * as schema from '@/db/schema';
 import {
   validateCoordinates,
   sanitizeString,
@@ -51,7 +52,7 @@ export function prepareStoreForInsert(store: PublicDataStore): {
  * Cloudflare D1의 제한사항을 고려한 안전한 처리
  */
 export async function upsertStoresIndividually(
-  db: ReturnType<typeof import('./db').getDb>,
+  db: DrizzleD1Database<typeof schema>,
   stores: Array<ReturnType<typeof prepareStoreForInsert>>,
   onError?: (sourceId: string, error: Error) => void
 ): Promise<number> {

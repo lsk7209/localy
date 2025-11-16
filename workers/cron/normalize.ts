@@ -93,6 +93,7 @@ export async function handleNormalize(
           lng = null;
         }
 
+        // Note: Drizzle ORM의 SQLite 타입 추론 제한으로 인해 'as any' 캐스팅 필요
         bizPlaceInserts.push({
           id: bizId,
           sourceId: raw.sourceId,
@@ -107,8 +108,9 @@ export async function handleNormalize(
           lng,
           status: storeData.status ? sanitizeString(String(storeData.status)) : null,
           licenseDate: storeData.license_date ? sanitizeString(String(storeData.license_date)) : null,
-        });
+        } as BizPlaceInsert);
 
+        // Note: Drizzle ORM의 SQLite 타입 추론 제한으로 인해 'as any' 캐스팅 필요
         bizMetaInserts.push({
           bizId,
           slug,
@@ -116,7 +118,7 @@ export async function handleNormalize(
           aiFaq: null,
           isPublishable: false,
           lastPublishedAt: null,
-        });
+        } as BizMetaInsert);
 
         processedSourceIds.push(raw.sourceId);
       } catch (error) {

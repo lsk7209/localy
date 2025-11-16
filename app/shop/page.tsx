@@ -14,7 +14,7 @@ import {
   Pagination,
 } from '@mui/material';
 import { Search, Map } from '@mui/icons-material';
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
@@ -40,10 +40,10 @@ interface PaginationInfo {
 }
 
 /**
- * 상가 리스트 페이지
- * 업종 및 지역별 상가 목록을 보여주는 페이지
+ * 상가 리스트 페이지 내부 컴포넌트
+ * useSearchParams를 사용하는 부분
  */
-export default function ShopListPage() {
+function ShopListContent() {
   const searchParams = useSearchParams();
   const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
   const [category, setCategory] = useState(searchParams.get('category') || '');
@@ -281,6 +281,30 @@ export default function ShopListPage() {
       </Box>
       <Footer />
     </Box>
+  );
+}
+
+/**
+ * 상가 리스트 페이지
+ * 업종 및 지역별 상가 목록을 보여주는 페이지
+ */
+export default function ShopListPage() {
+  return (
+    <Suspense fallback={
+      <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+        <Header />
+        <Box component="main" sx={{ flexGrow: 1, py: { xs: 2, sm: 3 } }}>
+          <Container maxWidth="md">
+            <Box sx={{ py: 4 }}>
+              <LoadingSkeleton variant="card" count={6} />
+            </Box>
+          </Container>
+        </Box>
+        <Footer />
+      </Box>
+    }>
+      <ShopListContent />
+    </Suspense>
   );
 }
 
