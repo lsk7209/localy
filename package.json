@@ -11,7 +11,9 @@
     "worker:deploy": "wrangler deploy",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "wrangler d1 migrations apply DB --local",
-    "db:migrate:prod": "wrangler d1 migrations apply DB"
+    "db:migrate:prod": "wrangler d1 migrations apply DB",
+    "deploy": "node scripts/auto-deploy.js",
+    "deploy:auto": "node scripts/auto-deploy.js"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
