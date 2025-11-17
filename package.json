@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:cf": "npx @cloudflare/next-on-pages@1",
     "build:clean": "next build && node scripts/clean-build-cache.js",
     "postbuild": "node scripts/clean-build-cache.js",
     "start": "next start",
@@ -35,6 +36,7 @@
     "typescript": "^5.7.2"
   },
   "devDependencies": {
+    "@cloudflare/next-on-pages": "^1.15.0",
     "@cloudflare/workers-types": "^4.20250122.0",
     "drizzle-kit": "^0.30.0",
     "eslint": "9.39.1",
