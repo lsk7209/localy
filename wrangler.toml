@@ -8,9 +8,16 @@ compatibility_date = "2025-01-15"
 # Next.js 15 SSR을 사용할 때는 opennextjs-cloudflare를 사용해야 합니다
 # @cloudflare/next-on-pages는 deprecated되었습니다
 # Build command: npm run build:cf
-# OpenNext는 .open-next/assets에 정적 파일을 생성합니다
-# Cloudflare Pages는 .open-next/assets 디렉토리를 사용해야 합니다
-pages_build_output_dir = ".open-next/assets"
+# OpenNext는 .open-next 디렉토리에 worker.js와 assets를 생성합니다
+# Cloudflare Pages는 .open-next 전체를 사용하며, worker.js가 Functions로 자동 변환됩니다
+pages_build_output_dir = ".open-next"
+
+# OpenNext Assets 설정 (Cloudflare Pages에서 정적 파일 제공)
+# worker.js가 assets 디렉토리의 정적 파일을 제공합니다
+[assets]
+directory = ".open-next/assets"
+binding = "ASSETS"
+run_worker_first = true
 
 # Workers 배포 시에만 필요한 설정들 (Pages 배포에는 불필요)
 # 실제 Workers 배포 전에 아래 ID들을 설정해야 합니다
