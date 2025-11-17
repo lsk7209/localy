@@ -119,8 +119,15 @@ export async function GET(
     await cache.shopDetail.set(env, slug, responseData);
 
     return NextResponse.json(responseData);
-      } catch (error) {
-    const { slug: errorSlug } = await params;
+  } catch (error) {
+    let errorSlug = 'unknown';
+    try {
+      const resolvedParams = await params;
+      errorSlug = resolvedParams.slug;
+    } catch {
+      // params를 가져올 수 없는 경우 무시
+    }
+    
     console.error('Failed to fetch store:', {
       error: error instanceof Error ? error.message : String(error),
       slug: errorSlug,

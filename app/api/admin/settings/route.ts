@@ -64,7 +64,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const body = await request.json();
+    // 요청 본문 파싱
+    let body: { aiEnabled?: boolean; publishRateLimit?: number };
+    try {
+      body = await request.json();
+    } catch (error) {
+      return NextResponse.json(
+        { error: 'Invalid request body' },
+        { status: 400 }
+      );
+    }
+
     const { aiEnabled, publishRateLimit } = body;
 
     // 설정 저장

@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
     
     // API 키 검증
     const authHeader = request.headers.get('authorization');
-    const apiKey = process.env.REVALIDATE_API_KEY || env?.REVALIDATE_API_KEY;
+    const apiKey = env?.REVALIDATE_API_KEY;
 
     if (!apiKey) {
       console.error('REVALIDATE_API_KEY is not configured');
@@ -34,7 +34,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { slug } = await request.json();
+    // 요청 본문 파싱
+    let body: { slug?: string };
+    try {
+      body = await request.json();
+    } catch (error) {
+      return NextResponse.json(
+        { error: 'Invalid request body' },
+        { status: 400 }
+      );
+    }
+
+    const { slug } = body;
 
     if (!slug || typeof slug !== 'string') {
       return NextResponse.json({ error: 'Invalid slug' }, { status: 400 });

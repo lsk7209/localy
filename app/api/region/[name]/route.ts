@@ -116,7 +116,14 @@ export async function GET(
 
       return NextResponse.json(responseData);
   } catch (error) {
-    const { name: errorName } = await params;
+    let errorName = 'unknown';
+    try {
+      const resolvedParams = await params;
+      errorName = resolvedParams.name;
+    } catch {
+      // params를 가져올 수 없는 경우 무시
+    }
+    
     console.error('Failed to fetch region stats:', {
       error: error instanceof Error ? error.message : String(error),
       regionName: errorName,
