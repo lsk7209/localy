@@ -11,10 +11,12 @@ pages_build_output_dir = ".next"
 # 실제 Workers 배포 전에 아래 ID들을 설정해야 합니다
 # 
 # D1 Database
-# [[d1_databases]]
-# binding = "DB"
-# database_name = "localy-db"
-# database_id = "YOUR_DATABASE_ID_HERE"  # 프로덕션 배포 시 설정 필요
+# Pages 배포 시에는 Dashboard에서 바인딩 설정 필요
+# Dashboard → Pages → Settings → Functions → D1 Database bindings
+[[d1_databases]]
+binding = "DB"
+database_name = "localy-db"
+database_id = "eabdfa2a-1676-49e3-b7a1-40155cc6a20c"
 #
 # KV Namespaces
 # [[kv_namespaces]]
