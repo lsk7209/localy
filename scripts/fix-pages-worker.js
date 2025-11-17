@@ -11,6 +11,7 @@ const fs = require('fs');
 const path = require('path');
 
 const workerPath = path.join(process.cwd(), '.open-next', 'worker.js');
+// Cloudflare Pages는 루트에 _worker.js를 찾습니다
 const pagesWorkerPath = path.join(process.cwd(), '.open-next', '_worker.js');
 
 try {
