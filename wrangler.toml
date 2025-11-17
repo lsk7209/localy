@@ -29,35 +29,35 @@ database_id = "eabdfa2a-1676-49e3-b7a1-40155cc6a20c"
 #
 # 또는 스크립트 실행: .\scripts\create-kv-namespaces.ps1
 
-# [[kv_namespaces]]
-# binding = "SETTINGS"
-# id = "YOUR_SETTINGS_ID"  # 위 명령어로 생성 후 ID 입력
-# preview_id = "YOUR_PREVIEW_SETTINGS_ID"  # --preview로 생성 후 ID 입력
+[[kv_namespaces]]
+binding = "SETTINGS"
+id = "860d8a0dd5f44bf29f2191129986b589"
+preview_id = "a3542f4e19dd49129e925ddb3dba5223"
 
-# [[kv_namespaces]]
-# binding = "CACHE"
-# id = "YOUR_CACHE_ID"
-# preview_id = "YOUR_PREVIEW_CACHE_ID"
+[[kv_namespaces]]
+binding = "CACHE"
+id = "66d994b0e42c4562af11e9fdda2b35b6"
+preview_id = "ccd4be434f184735836e6d570b71430e"
 
-# [[kv_namespaces]]
-# binding = "RATE_LIMIT"
-# id = "YOUR_RATE_LIMIT_ID"
-# preview_id = "YOUR_PREVIEW_RATE_LIMIT_ID"
+[[kv_namespaces]]
+binding = "RATE_LIMIT"
+id = "1cd596f086814cbeab50bf58f9561db6"
+preview_id = "68e258ee518a43bf8835d9383dd355b1"
 
-# [[kv_namespaces]]
-# binding = "FETCH_FAIL_QUEUE"
-# id = "YOUR_FETCH_FAIL_QUEUE_ID"
-# preview_id = "YOUR_PREVIEW_FETCH_FAIL_QUEUE_ID"
+[[kv_namespaces]]
+binding = "FETCH_FAIL_QUEUE"
+id = "d2cc283f85194818bed6935d6f48ee80"
+preview_id = "81cad78a35a94d9d917a229797153c15"
 
-# [[kv_namespaces]]
-# binding = "DEAD_FAIL_QUEUE"
-# id = "YOUR_DEAD_FAIL_QUEUE_ID"
-# preview_id = "YOUR_PREVIEW_DEAD_FAIL_QUEUE_ID"
+[[kv_namespaces]]
+binding = "DEAD_FAIL_QUEUE"
+id = "ba607411913c4e159f4dfa5acbd8bbaf"
+preview_id = "c3ac12f8f0074e7d90a8d5219929698e"
 
-# [[kv_namespaces]]
-# binding = "SITEMAP"
-# id = "YOUR_SITEMAP_ID"
-# preview_id = "YOUR_PREVIEW_SITEMAP_ID"
+[[kv_namespaces]]
+binding = "SITEMAP"
+id = "41117fbcc0794b74b477d34243f905eb"
+preview_id = "f64fc7ef32c14d6685f1d9c04cee825b"
 #
 # Queues
 # [[queues.producers]]

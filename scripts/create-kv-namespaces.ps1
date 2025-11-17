@@ -21,9 +21,23 @@ foreach ($namespace in $namespaces) {
         Write-Host $output
         
         # ID 추출 (출력에서 ID 찾기)
+        # 여러 패턴 시도: id = "..." 또는 preview_id = "..."
         if ($output -match 'id = "([^"]+)"') {
             $productionIds[$namespace] = $matches[1]
             Write-Host "✅ $namespace ID: $($matches[1])" -ForegroundColor Green
+        } elseif ($output -match 'binding = "' + $namespace + '"[\s\S]*?id = "([^"]+)"') {
+            $productionIds[$namespace] = $matches[1]
+            Write-Host "✅ $namespace ID: $($matches[1])" -ForegroundColor Green
+        } else {
+            # 전체 출력에서 ID 찾기
+            $lines = $output -split "`n"
+            foreach ($line in $lines) {
+                if ($line -match 'id = "([^"]+)"' -and $line -notmatch 'preview_id') {
+                    $productionIds[$namespace] = $matches[1]
+                    Write-Host "✅ $namespace ID: $($matches[1])" -ForegroundColor Green
+                    break
+                }
+            }
         }
     } catch {
         Write-Host "❌ $namespace 생성 실패: $_" -ForegroundColor Red
@@ -44,10 +58,23 @@ foreach ($namespace in $namespaces) {
         $output = npx wrangler kv:namespace create $namespace --preview 2>&1
         Write-Host $output
         
-        # ID 추출
-        if ($output -match 'id = "([^"]+)"') {
+        # ID 추출 (Preview는 preview_id 사용)
+        if ($output -match 'preview_id = "([^"]+)"') {
             $previewIds[$namespace] = $matches[1]
             Write-Host "✅ $namespace Preview ID: $($matches[1])" -ForegroundColor Green
+        } elseif ($output -match 'binding = "' + $namespace + '"[\s\S]*?preview_id = "([^"]+)"') {
+            $previewIds[$namespace] = $matches[1]
+            Write-Host "✅ $namespace Preview ID: $($matches[1])" -ForegroundColor Green
+        } else {
+            # 전체 출력에서 preview_id 찾기
+            $lines = $output -split "`n"
+            foreach ($line in $lines) {
+                if ($line -match 'preview_id = "([^"]+)"') {
+                    $previewIds[$namespace] = $matches[1]
+                    Write-Host "✅ $namespace Preview ID: $($matches[1])" -ForegroundColor Green
+                    break
+                }
+            }
         }
     } catch {
         Write-Host "❌ $namespace Preview 생성 실패: $_" -ForegroundColor Red
