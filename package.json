@@ -5,6 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:clean": "next build && node scripts/clean-build-cache.js",
+    "postbuild": "node scripts/clean-build-cache.js",
     "start": "next start",
     "lint": "next lint",
     "worker:dev": "wrangler dev",

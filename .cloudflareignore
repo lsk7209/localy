@@ -1,0 +1,49 @@
+# Cloudflare Pages 배포 시 제외할 파일/디렉토리
+# Next.js 빌드 캐시는 배포에 포함하지 않음 (25 MiB 제한)
+
+# Next.js 캐시
+.next/cache/
+.next/cache/webpack/
+.next/cache/eslint/
+
+# 개발 파일
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# 환경 변수
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Cloudflare 개발 파일
+.wrangler/
+.dev.vars
+
+# 데이터베이스
+*.db
+*.db-journal
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Drizzle
+drizzle/
+
+# 테스트
+coverage/
+
+# 소스맵 (선택사항)
+*.map
+

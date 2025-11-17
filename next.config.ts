@@ -9,6 +9,18 @@ const nextConfig: NextConfig = {
       bodySizeLimit: '2mb',
     },
   },
+  // Cloudflare Pages 배포 최적화
+  // 캐시 디렉토리는 배포에 포함하지 않음 (25 MiB 제한)
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      // 클라이언트 빌드 최적화
+      config.optimization = {
+        ...config.optimization,
+        minimize: true,
+      };
+    }
+    return config;
+  },
 };
 
 export default nextConfig;
