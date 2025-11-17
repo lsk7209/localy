@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "build:cf": "opennextjs-cloudflare build",
+    "build:cf": "opennextjs-cloudflare build && node scripts/fix-pages-worker.js",
     "build:clean": "next build && node scripts/clean-build-cache.js",
     "postbuild": "node scripts/clean-build-cache.js",
     "start": "next start",
