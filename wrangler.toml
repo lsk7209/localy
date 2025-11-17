@@ -1,5 +1,7 @@
 name = "localy-workers"
 compatibility_date = "2025-01-15"
+# OpenNext는 Node.js 런타임을 사용하므로 nodejs_compat 플래그 필수
+compatibility_flags = ["nodejs_compat"]
 
 # Cloudflare Pages 빌드 출력 디렉토리 설정
 # Pages 배포 시에는 main을 사용할 수 없으므로 주석 처리
