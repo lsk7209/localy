@@ -10,11 +10,10 @@ compatibility_flags = ["nodejs_compat"]
 pages_build_output_dir = ".open-next"
 
 # Assets 설정 (Pages에서 정적 파일 제공)
-# Pages는 main 필드가 없을 때 [assets] 섹션을 사용할 수 있습니다
-# ASSETS 바인딩을 통해 _worker.js가 정적 파일을 제공할 수 있습니다
-[assets]
-directory = ".open-next/assets"
-binding = "ASSETS"
+# Pages는 자동으로 .open-next/assets 디렉토리를 인식하고 ASSETS 바인딩을 생성합니다
+# ASSETS는 Pages에서 예약어이므로 binding 필드를 지정할 수 없습니다
+# Pages는 pages_build_output_dir 내의 assets 디렉토리를 자동으로 인식합니다
+# [assets] 섹션은 Pages에서 필요하지 않습니다 (자동 인식)
 
 # Cloudflare Workers 배포 설정 (수동 배포용)
 # Workers 배포를 원하는 경우 아래 주석을 해제하고 위의 pages_build_output_dir와 [assets]를 주석 처리하세요
