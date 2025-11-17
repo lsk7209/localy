@@ -13,8 +13,10 @@ main = ".open-next/worker.js"
 directory = ".open-next/assets"
 binding = "STATIC_ASSETS"
 
-# Pages 배포를 원하는 경우 아래 주석을 해제하고 위의 main과 [assets]를 주석 처리하세요
-# pages_build_output_dir = ".open-next"
+# Pages 배포 설정 (GitHub 자동 배포용)
+# Pages는 pages_build_output_dir 속성이 필요합니다
+# Workers 배포와 Pages 배포를 동시에 지원하기 위해 둘 다 설정합니다
+pages_build_output_dir = ".open-next"
 
 # OpenNext Assets 설정 (Cloudflare Pages에서 정적 파일 제공)
 # worker.js가 assets 디렉토리의 정적 파일을 제공합니다
