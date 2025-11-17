@@ -5,10 +5,12 @@ compatibility_date = "2025-01-15"
 # Pages 배포 시에는 main을 사용할 수 없으므로 주석 처리
 # Workers 배포 시에는 아래 주석을 해제하고 pages_build_output_dir을 제거하세요
 # main = "workers/index.ts"
-# Next.js 15 SSR을 사용할 때는 @cloudflare/next-on-pages를 사용해야 합니다
+# Next.js 15 SSR을 사용할 때는 opennextjs-cloudflare를 사용해야 합니다
+# @cloudflare/next-on-pages는 deprecated되었습니다
 # Build command: npm run build:cf
-# Build output directory: .vercel/output/static
-pages_build_output_dir = ".vercel/output/static"
+# Build output directory: .open-next (OpenNext 사용 시)
+# 또는 정적 사이트로 배포: output: 'export' 사용 시 out 디렉토리
+pages_build_output_dir = ".open-next"
 
 # Workers 배포 시에만 필요한 설정들 (Pages 배포에는 불필요)
 # 실제 Workers 배포 전에 아래 ID들을 설정해야 합니다
