@@ -1,8 +1,10 @@
 name = "localy-workers"
-main = "workers/index.ts"
 compatibility_date = "2025-01-15"
 
 # Cloudflare Pages 빌드 출력 디렉토리 설정
+# Pages 배포 시에는 main을 사용할 수 없으므로 주석 처리
+# Workers 배포 시에는 아래 주석을 해제하고 pages_build_output_dir을 제거하세요
+# main = "workers/index.ts"
 pages_build_output_dir = ".next"
 
 # Workers 배포 시에만 필요한 설정들 (Pages 배포에는 불필요)
