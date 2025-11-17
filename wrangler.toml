@@ -19,35 +19,45 @@ database_name = "localy-db"
 database_id = "eabdfa2a-1676-49e3-b7a1-40155cc6a20c"
 #
 # KV Namespaces
+# Pages 배포 시에는 Dashboard에서 바인딩 설정 필요
+# Dashboard → Pages → Settings → Functions → KV Namespace bindings
+# 
+# 생성 방법:
+# 1. npx wrangler kv:namespace create SETTINGS
+# 2. 생성된 ID를 아래에 입력
+# 3. Preview: npx wrangler kv:namespace create SETTINGS --preview
+#
+# 또는 스크립트 실행: .\scripts\create-kv-namespaces.ps1
+
 # [[kv_namespaces]]
 # binding = "SETTINGS"
-# id = "YOUR_SETTINGS_ID"  # 프로덕션 배포 시 설정 필요
-# preview_id = "YOUR_PREVIEW_SETTINGS_ID"  # 로컬 개발용
-#
-# [[kv_namespaces]]
-# binding = "FETCH_FAIL_QUEUE"
-# id = "YOUR_FETCH_FAIL_QUEUE_ID"  # 프로덕션 배포 시 설정 필요
-# preview_id = "YOUR_PREVIEW_FETCH_FAIL_QUEUE_ID"  # 로컬 개발용
-#
-# [[kv_namespaces]]
-# binding = "DEAD_FAIL_QUEUE"
-# id = "YOUR_DEAD_FAIL_QUEUE_ID"  # 프로덕션 배포 시 설정 필요
-# preview_id = "YOUR_PREVIEW_DEAD_FAIL_QUEUE_ID"  # 로컬 개발용
-#
-# [[kv_namespaces]]
-# binding = "SITEMAP"
-# id = "YOUR_SITEMAP_ID"  # 프로덕션 배포 시 설정 필요
-# preview_id = "YOUR_PREVIEW_SITEMAP_ID"  # 로컬 개발용
-#
+# id = "YOUR_SETTINGS_ID"  # 위 명령어로 생성 후 ID 입력
+# preview_id = "YOUR_PREVIEW_SETTINGS_ID"  # --preview로 생성 후 ID 입력
+
 # [[kv_namespaces]]
 # binding = "CACHE"
-# id = "YOUR_CACHE_ID"  # 프로덕션 배포 시 설정 필요
-# preview_id = "YOUR_PREVIEW_CACHE_ID"  # 로컬 개발용
-#
+# id = "YOUR_CACHE_ID"
+# preview_id = "YOUR_PREVIEW_CACHE_ID"
+
 # [[kv_namespaces]]
 # binding = "RATE_LIMIT"
-# id = "YOUR_RATE_LIMIT_ID"  # 프로덕션 배포 시 설정 필요
-# preview_id = "YOUR_PREVIEW_RATE_LIMIT_ID"  # 로컬 개발용
+# id = "YOUR_RATE_LIMIT_ID"
+# preview_id = "YOUR_PREVIEW_RATE_LIMIT_ID"
+
+# [[kv_namespaces]]
+# binding = "FETCH_FAIL_QUEUE"
+# id = "YOUR_FETCH_FAIL_QUEUE_ID"
+# preview_id = "YOUR_PREVIEW_FETCH_FAIL_QUEUE_ID"
+
+# [[kv_namespaces]]
+# binding = "DEAD_FAIL_QUEUE"
+# id = "YOUR_DEAD_FAIL_QUEUE_ID"
+# preview_id = "YOUR_PREVIEW_DEAD_FAIL_QUEUE_ID"
+
+# [[kv_namespaces]]
+# binding = "SITEMAP"
+# id = "YOUR_SITEMAP_ID"
+# preview_id = "YOUR_PREVIEW_SITEMAP_ID"
 #
 # Queues
 # [[queues.producers]]
