@@ -12,6 +12,7 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "wrangler d1 migrations apply DB --local",
     "db:migrate:prod": "wrangler d1 migrations apply DB",
+    "kv:create": "powershell -ExecutionPolicy Bypass -File scripts/create-kv-namespaces.ps1",
     "deploy": "node scripts/auto-deploy.js",
     "deploy:auto": "node scripts/auto-deploy.js"
   },
