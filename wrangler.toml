@@ -3,16 +3,18 @@ compatibility_date = "2025-01-15"
 # OpenNext는 Node.js 런타임을 사용하므로 nodejs_compat 플래그 필수
 compatibility_flags = ["nodejs_compat"]
 
-# Cloudflare Pages 빌드 출력 디렉토리 설정
-# Pages 배포 시에는 main을 사용할 수 없으므로 주석 처리
-# Workers 배포 시에는 아래 주석을 해제하고 pages_build_output_dir을 제거하세요
-# main = "workers/index.ts"
-# Next.js 15 SSR을 사용할 때는 opennextjs-cloudflare를 사용해야 합니다
-# @cloudflare/next-on-pages는 deprecated되었습니다
-# Build command: npm run build:cf
-# OpenNext는 .open-next 디렉토리에 worker.js와 assets를 생성합니다
-# Cloudflare Pages는 .open-next 전체를 사용하며, worker.js가 Functions로 자동 변환됩니다
-pages_build_output_dir = ".open-next"
+# Cloudflare Workers 배포 설정
+# OpenNext는 Workers에 최적화되어 있으므로 Workers로 배포하는 것이 권장됩니다
+# Pages 배포는 복잡하고 불안정할 수 있습니다
+main = ".open-next/worker.js"
+
+# Assets 설정 (Workers에서 정적 파일 제공)
+[assets]
+directory = ".open-next/assets"
+binding = "STATIC_ASSETS"
+
+# Pages 배포를 원하는 경우 아래 주석을 해제하고 위의 main과 [assets]를 주석 처리하세요
+# pages_build_output_dir = ".open-next"
 
 # OpenNext Assets 설정 (Cloudflare Pages에서 정적 파일 제공)
 # worker.js가 assets 디렉토리의 정적 파일을 제공합니다
