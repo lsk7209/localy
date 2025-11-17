@@ -34,6 +34,11 @@ export function getCloudflareEnv(): CloudflareEnv {
   // Next.js 15에서는 process.env가 자동으로 설정됨
   // D1, KV 등 바인딩은 process.env를 통해 접근 가능
   
+  // 런타임에만 접근하도록 보장 (빌드 시점 에러 방지)
+  if (typeof process === 'undefined' || !process.env) {
+    return {} as CloudflareEnv;
+  }
+  
   // Cloudflare Pages Functions에서는 바인딩이 자동으로 주입됨
   // 예: DB 바인딩 → process.env.DB, SETTINGS KV → process.env.SETTINGS
   const env = (process.env as unknown as CloudflareEnv) || {};
