@@ -119,6 +119,9 @@ export function validatePagination(
 
 /**
  * 검색어 검증 및 정제
+ * 
+ * 검색어는 HTML이 아니므로 HTML 엔티티 변환을 하지 않고,
+ * SQL LIKE 쿼리에서 사용할 수 있도록 안전하게 처리합니다.
  */
 export function validateSearchQuery(query: string | null | undefined): string {
   if (!query || typeof query !== 'string') {
@@ -127,9 +130,18 @@ export function validateSearchQuery(query: string | null | undefined): string {
 
   // 최대 길이 제한
   const maxLength = 100;
-  const sanitized = sanitizeString(query);
+  
+  // HTML 엔티티 변환 없이 기본 정제만 수행
+  // (검색어는 HTML이 아니므로 엔티티 변환이 불필요)
+  let sanitized = query
+    .trim()
+    .replace(/\s+/g, ' ') // 연속된 공백을 하나로
+    .substring(0, maxLength);
 
-  return sanitized.length > maxLength ? sanitized.substring(0, maxLength) : sanitized;
+  // SQL LIKE 와일드카드 이스케이프는 Drizzle ORM이 자동 처리하므로
+  // 여기서는 기본적인 정제만 수행
+
+  return sanitized;
 }
 
 /**

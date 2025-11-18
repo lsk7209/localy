@@ -12,6 +12,7 @@ import {
   sanitizeString,
 } from '@/workers/utils/validation';
 import { getCloudflareEnv } from '../types';
+import { logger } from '@/workers/utils/logger';
 
 /**
  * 상가 목록 API
@@ -21,27 +22,35 @@ export async function GET(request: NextRequest) {
   try {
     const env = getCloudflareEnv();
     
-    // Rate Limit 체크
-    const rateLimitResult = await checkAPIRateLimit(env, request);
-    if (!rateLimitResult.allowed) {
-      return NextResponse.json(
-        {
-          error: 'Too many requests',
-          message: 'Rate limit exceeded. Please try again later.',
-          retryAfter: rateLimitResult.retryAfter,
-        },
-        {
-          status: 429,
-          headers: {
-            'X-RateLimit-Limit': String(rateLimitResult.limit),
-            'X-RateLimit-Remaining': String(rateLimitResult.remaining),
-            'X-RateLimit-Reset': String(rateLimitResult.reset),
-            ...(rateLimitResult.retryAfter && {
-              'Retry-After': String(rateLimitResult.retryAfter),
-            }),
+    // Rate Limit 체크 (RATE_LIMIT KV가 없어도 동작하도록 try-catch)
+    let rateLimitResult;
+    try {
+      rateLimitResult = await checkAPIRateLimit(env, request);
+      if (!rateLimitResult.allowed) {
+        return NextResponse.json(
+          {
+            error: 'Too many requests',
+            message: 'Rate limit exceeded. Please try again later.',
+            retryAfter: rateLimitResult.retryAfter,
           },
-        }
-      );
+          {
+            status: 429,
+            headers: {
+              'X-RateLimit-Limit': String(rateLimitResult.limit),
+              'X-RateLimit-Remaining': String(rateLimitResult.remaining),
+              'X-RateLimit-Reset': String(rateLimitResult.reset),
+              ...(rateLimitResult.retryAfter && {
+                'Retry-After': String(rateLimitResult.retryAfter),
+              }),
+            },
+          }
+        );
+      }
+    } catch (rateLimitError) {
+      // Rate limit check failed, continuing (e.g., in development)
+      logger.warn('Rate limit check failed, continuing', {
+        error: rateLimitError instanceof Error ? rateLimitError.message : String(rateLimitError),
+      });
     }
     
     if (!env?.DB) {
@@ -188,12 +197,17 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(responseData);
   } catch (error) {
-    console.error('Failed to fetch shops:', {
-      error: error instanceof Error ? error.message : String(error),
-      timestamp: new Date().toISOString(),
-    });
+    const errorObj = error instanceof Error ? error : new Error(String(error));
+    logger.error('Failed to fetch shops', {
+      url: request.url,
+      searchParams: Object.fromEntries(new URL(request.url).searchParams),
+    }, errorObj);
+    
     return NextResponse.json(
-      { error: 'Internal server error' },
+      {
+        error: 'Internal server error',
+        message: process.env.NODE_ENV === 'development' ? errorObj.message : 'An error occurred while fetching shops',
+      },
       { status: 500 }
     );
   }
