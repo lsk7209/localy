@@ -59,8 +59,18 @@ export async function handleInitialFetch(
     // 행정동 목록 조회
     const dongList = await getDongList(nextDongIndex, WORKER_CONFIG.INITIAL_FETCH_DONG_COUNT);
     
+    logger.info('Dong list retrieved', {
+      nextDongIndex,
+      requestedCount: WORKER_CONFIG.INITIAL_FETCH_DONG_COUNT,
+      actualCount: dongList.length,
+      dongCodes: dongList.slice(0, 5), // 처음 5개만 로깅
+    });
+    
     if (dongList.length === 0) {
-      logger.info('No dong list available. This may indicate all data has been fetched or API needs configuration.');
+      logger.warn('No dong list available. This may indicate all data has been fetched or API needs configuration.', {
+        nextDongIndex,
+        requestedCount: WORKER_CONFIG.INITIAL_FETCH_DONG_COUNT,
+      });
       return;
     }
 
