@@ -3,6 +3,9 @@ import { getCloudflareEnv } from '../../types';
 import { handleIncrementalFetch } from '@/workers/cron/incremental-fetch';
 import { logger } from '@/workers/utils/logger';
 import type { Env } from '@/workers/types';
+import { drizzle } from 'drizzle-orm/d1';
+import * as schema from '@/db/schema';
+import { count } from 'drizzle-orm';
 
 /**
  * 증분 수집 수동 트리거 API
@@ -49,16 +52,66 @@ export async function POST(request: NextRequest) {
       },
     };
     
+    // 증분 수집 실행 전 데이터베이스 카운트 확인
+    const db = drizzle(env.DB, { schema });
+    const beforeCount = await db
+      .select({ count: count() })
+      .from(schema.rawStore)
+      .get();
+    const beforeCountValue = beforeCount?.count || 0;
+    
     // 증분 수집 실행
     // DB와 SETTINGS가 확인되었으므로 Env 타입으로 단언
-    logger.info('Manual incremental fetch triggered');
-    await handleIncrementalFetch(env as Env, ctx as any);
-    
-    return NextResponse.json({
-      success: true,
-      message: 'Incremental fetch started',
-      timestamp: new Date().toISOString(),
+    logger.info('Manual incremental fetch triggered', {
+      beforeCount: beforeCountValue,
     });
+    
+    try {
+      await handleIncrementalFetch(env as Env, ctx as any);
+      
+      // 수집 후 데이터베이스 카운트 확인 (약간의 지연 후)
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      const afterCount = await db
+        .select({ count: count() })
+        .from(schema.rawStore)
+        .get();
+      const afterCountValue = afterCount?.count || 0;
+      const insertedCount = afterCountValue - beforeCountValue;
+      
+      logger.info('Incremental fetch completed', {
+        beforeCount: beforeCountValue,
+        afterCount: afterCountValue,
+        insertedCount,
+      });
+      
+      return NextResponse.json({
+        success: true,
+        message: 'Incremental fetch completed',
+        data: {
+          beforeCount: beforeCountValue,
+          afterCount: afterCountValue,
+          insertedCount,
+        },
+        timestamp: new Date().toISOString(),
+      });
+    } catch (fetchError) {
+      // 수집 실패 시에도 카운트 확인
+      const afterCount = await db
+        .select({ count: count() })
+        .from(schema.rawStore)
+        .get();
+      const afterCountValue = afterCount?.count || 0;
+      const insertedCount = afterCountValue - beforeCountValue;
+      
+      logger.error('Incremental fetch failed', {
+        beforeCount: beforeCountValue,
+        afterCount: afterCountValue,
+        insertedCount,
+      }, fetchError instanceof Error ? fetchError : new Error(String(fetchError)));
+      
+      throw fetchError;
+    }
   } catch (error) {
     const errorObj = error instanceof Error ? error : new Error(String(error));
     logger.error('Failed to trigger incremental fetch', {}, errorObj);
