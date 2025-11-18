@@ -3,7 +3,7 @@ import type { D1Database, KVNamespace, Queue } from '@cloudflare/workers-types';
 // OpenNext의 getCloudflareContext를 동적으로 import
 let getCloudflareContextFn: (() => { env: CloudflareEnv }) | null = null;
 try {
-  // @ts-expect-error: OpenNext의 getCloudflareContext는 런타임에만 사용 가능
+  // @ts-ignore: OpenNext의 getCloudflareContext는 런타임에만 사용 가능
   const openNextCloudflare = require('@opennextjs/cloudflare');
   if (typeof openNextCloudflare.getCloudflareContext === 'function') {
     getCloudflareContextFn = openNextCloudflare.getCloudflareContext;
