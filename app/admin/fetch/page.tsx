@@ -401,8 +401,9 @@ export default function FetchManagementPage() {
 
             {/* 마지막 업데이트 시간 */}
             {lastUpdate && (
-              /* @ts-ignore */
-              <Grid item xs={12}>
+              <>
+                {/* @ts-ignore */}
+                <Grid item xs={12}>
                 <Paper
                   sx={{
                     p: 2,
