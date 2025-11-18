@@ -77,24 +77,42 @@ export async function upsertStoresIndividually(
 
   for (const store of stores) {
     try {
-      // INSERT 시도
-      await db.insert(rawStore).values(store);
-      successCount++;
-    } catch (insertError) {
-      // 중복 키 오류인 경우 UPDATE 수행
-      // Note: Drizzle ORM의 SQLite 타입 추론 제한으로 인해 'as any' 캐스팅 필요
-      // store는 이미 검증된 데이터이므로 타입 안전성 보장됨
-      try {
-        await db
-          .update(rawStore)
-          .set(store as any)
-          .where(eq(rawStore.sourceId, store.sourceId));
+      // INSERT 시도 (onConflictDoNothing 사용)
+      await db.insert(rawStore).values(store).onConflictDoNothing();
+      
+      // 실제로 INSERT되었는지 확인 (중복이면 조용히 무시되므로)
+      // SELECT로 확인하여 실제 저장 여부 판단
+      const existing = await db
+        .select()
+        .from(rawStore)
+        .where(eq(rawStore.sourceId, store.sourceId))
+        .get();
+      
+      if (existing) {
         successCount++;
-      } catch (updateError) {
-        const error = updateError instanceof Error 
-          ? updateError 
-          : new Error(String(updateError));
-        
+      } else {
+        // INSERT가 실패했지만 에러가 발생하지 않은 경우 (이상한 상황)
+        const error = new Error('INSERT failed silently (onConflictDoNothing but item not found)');
+        if (onError) {
+          onError(store.sourceId, error);
+        }
+      }
+    } catch (insertError) {
+      // INSERT 에러 발생 (중복 키 외의 에러)
+      const error = insertError instanceof Error 
+        ? insertError 
+        : new Error(String(insertError));
+      
+      // SQLite 중복 키 에러 체크
+      const isDuplicateError = error.message.includes('UNIQUE constraint') || 
+                                error.message.includes('duplicate') ||
+                                error.message.includes('PRIMARY KEY');
+      
+      if (isDuplicateError) {
+        // 중복 키인 경우 성공으로 간주 (이미 존재함)
+        successCount++;
+      } else {
+        // 다른 에러인 경우 onError 콜백 호출
         if (onError) {
           onError(store.sourceId, error);
         }
