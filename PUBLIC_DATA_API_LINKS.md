@@ -26,12 +26,15 @@
 1. **일반 인증키 (Encoding)**: URL 인코딩된 키
    - 예: `Dc%2Bm2FOHT2MQxGmXnBE3Qbuw9V4H4hJB8nKKOL6JWfWYK0Tc48AwXm7AkzGDREokxi%2BG1LeRUrqQG6NagZQ%2BAA%3D%3D`
    - URL 파라미터로 직접 사용 가능
+   - **권장**: 이 키를 사용하면 추가 인코딩 불필요
 
 2. **일반 인증키 (Decoding)**: 디코딩된 원본 키
    - 예: `Dc+m2FOHT2MQxGmXnBE3Qbuw9V4H4hJB8nKKOL6JWfWYK0Tc48AwXm7AkzGDREokxi+G1LeRUrqQG6NagZQ+AA==`
    - `URLSearchParams`를 통해 자동 인코딩 필요
 
 **권장사항**: Encoding 키를 사용하거나, Decoding 키를 사용할 경우 `URLSearchParams`를 통해 자동 인코딩
+
+**현재 코드**: `URLSearchParams`를 사용하므로 Decoding 키도 자동으로 인코딩됩니다.
 
 #### API 엔드포인트 (레거시 - 현재 코드에서 사용 중)
 
@@ -108,6 +111,15 @@ curl "https://api.odcloud.kr/api/15083033/v1/uddi:c7049f5a-d95e-4143-be96-b4d3c1
 ```
 
 **참고**: 새로운 Open API의 정확한 사용법은 Swagger 문서를 확인하세요: https://infuser.odcloud.kr/oas/docs?namespace=15083033/v1
+
+#### API 버전 선택
+
+코드에서 레거시 API와 새로운 Open API를 모두 지원합니다.
+
+- **기본값**: 레거시 API 사용 (`https://apis.data.go.kr/B553077/api/open/sdsc2/`)
+- **새로운 Open API 사용**: 환경 변수 `PUBLIC_DATA_API_VERSION=open` 설정
+
+**주의**: 새로운 Open API는 Swagger 문서를 확인하여 정확한 파라미터를 사용해야 합니다. 현재는 레거시 API와 유사한 구조를 가정합니다.
 
 ## 🔗 관련 링크
 

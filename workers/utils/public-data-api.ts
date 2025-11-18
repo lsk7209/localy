@@ -4,9 +4,34 @@ import { logger } from './logger';
 
 /**
  * 공공데이터 API 설정
+ * 
+ * 레거시 API (현재 기본 사용)
  */
-const PUBLIC_DATA_API_BASE_URL = 'https://apis.data.go.kr/B553077/api/open/sdsc2/storeListInDong';
-const PUBLIC_DATA_API_INCREMENTAL_URL = 'https://apis.data.go.kr/B553077/api/open/sdsc2/storeListByDate';
+const LEGACY_API_BASE_URL = 'https://apis.data.go.kr/B553077/api/open/sdsc2/storeListInDong';
+const LEGACY_API_INCREMENTAL_URL = 'https://apis.data.go.kr/B553077/api/open/sdsc2/storeListByDate';
+
+/**
+ * 새로운 Open API (api.odcloud.kr)
+ * 
+ * Swagger 문서: https://infuser.odcloud.kr/oas/docs?namespace=15083033/v1
+ * 엔드포인트: /15083033/v1/uddi:c7049f5a-d95e-4143-be96-b4d3c16130ee
+ * 데이터명: 소상공인시장진흥공단_상가(상권)정보_20171120
+ */
+const OPEN_API_BASE_URL = 'https://api.odcloud.kr/api/15083033/v1/uddi:c7049f5a-d95e-4143-be96-b4d3c16130ee';
+
+/**
+ * API 버전 선택 (환경 변수로 제어 가능)
+ * - 'legacy': 레거시 API 사용 (기본값)
+ * - 'open': 새로운 Open API 사용
+ */
+function getApiVersion(): 'legacy' | 'open' {
+  // 환경 변수로 API 버전 선택 가능 (기본값: legacy)
+  // process.env.PUBLIC_DATA_API_VERSION이 'open'이면 새로운 API 사용
+  if (typeof process !== 'undefined' && process.env?.PUBLIC_DATA_API_VERSION === 'open') {
+    return 'open';
+  }
+  return 'legacy';
+}
 
 /**
  * 공공데이터 API 응답 타입
@@ -98,8 +123,31 @@ export async function getDongList(startIndex: number, count: number): Promise<st
 
 /**
  * 특정 행정동의 상가 목록 조회
+ * 
+ * 레거시 API와 새로운 Open API를 모두 지원합니다.
+ * 환경 변수 PUBLIC_DATA_API_VERSION으로 선택 가능합니다.
  */
 export async function fetchStoreListInDong(
+  dongCode: string,
+  apiKey: string,
+  pageNo = 1,
+  numOfRows = 1000
+): Promise<PublicDataStore[]> {
+  const apiVersion = getApiVersion();
+  
+  if (apiVersion === 'open') {
+    // 새로운 Open API 사용
+    return fetchStoreListInDongOpenApi(dongCode, apiKey, pageNo, numOfRows);
+  } else {
+    // 레거시 API 사용 (기본)
+    return fetchStoreListInDongLegacy(dongCode, apiKey, pageNo, numOfRows);
+  }
+}
+
+/**
+ * 레거시 API로 행정동별 상가 목록 조회
+ */
+async function fetchStoreListInDongLegacy(
   dongCode: string,
   apiKey: string,
   pageNo = 1,
@@ -113,7 +161,7 @@ export async function fetchStoreListInDong(
     pageNo: String(pageNo),
   });
 
-  const url = `${PUBLIC_DATA_API_BASE_URL}?${params.toString()}`;
+  const url = `${LEGACY_API_BASE_URL}?${params.toString()}`;
 
   try {
     // 외부 API 호출에 타임아웃 설정 (20초)
@@ -226,7 +274,99 @@ export async function fetchStoreListInDong(
 }
 
 /**
+ * 새로운 Open API로 행정동별 상가 목록 조회
+ * 
+ * 참고: Swagger 문서를 확인하여 정확한 파라미터를 사용해야 합니다.
+ * 현재는 레거시 API와 동일한 파라미터 구조를 가정합니다.
+ */
+async function fetchStoreListInDongOpenApi(
+  dongCode: string,
+  apiKey: string,
+  pageNo = 1,
+  numOfRows = 1000
+): Promise<PublicDataStore[]> {
+  // 새로운 Open API는 Swagger 문서를 확인하여 정확한 파라미터를 사용해야 합니다.
+  // 현재는 레거시 API와 유사한 구조를 가정합니다.
+  const params = new URLSearchParams({
+    serviceKey: apiKey,
+    key: dongCode, // 행정동 코드 (Swagger 문서에서 확인 필요)
+    type: 'json',
+    numOfRows: String(numOfRows),
+    pageNo: String(pageNo),
+  });
+
+  const url = `${OPEN_API_BASE_URL}?${params.toString()}`;
+  
+  logger.info('Using new Open API', {
+    url: url.replace(apiKey, '***'),
+    dongCode,
+    pageNo,
+  });
+
+  try {
+    const response = await withTimeout(
+      fetch(url, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+        },
+      }),
+      20000,
+      `Open API timeout for dong ${dongCode}, page ${pageNo}`
+    );
+
+    if (!response.ok) {
+      throw new Error(`Open API request failed: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await withTimeout(
+      response.json() as Promise<any>,
+      5000,
+      `Open API JSON parsing timeout for dong ${dongCode}, page ${pageNo}`
+    );
+
+    // Open API 응답 구조는 Swagger 문서를 확인하여 정확히 파악해야 합니다.
+    // 현재는 레거시 API와 유사한 구조를 가정합니다.
+    logger.info('Open API response received', {
+      dongCode,
+      pageNo,
+      responseKeys: Object.keys(data),
+      responseSample: JSON.stringify(data).substring(0, 500),
+    });
+
+    // 응답 구조가 다를 수 있으므로 유연하게 처리
+    let items: any[] = [];
+    if (data.response?.body?.items) {
+      items = Array.isArray(data.response.body.items)
+        ? data.response.body.items
+        : [data.response.body.items];
+    } else if (Array.isArray(data)) {
+      items = data;
+    } else if (data.items) {
+      items = Array.isArray(data.items) ? data.items : [data.items];
+    }
+
+    logger.info('Open API returned stores', {
+      dongCode,
+      pageNo,
+      itemsCount: items.length,
+      firstStoreKeys: items.length > 0 ? Object.keys(items[0] || {}) : [],
+    });
+
+    return items;
+  } catch (error) {
+    logger.error('Failed to fetch store list from Open API', {
+      dongCode,
+      pageNo,
+    }, error instanceof Error ? error : new Error(String(error)));
+    throw error;
+  }
+}
+
+/**
  * 수정일 기준 상가 목록 조회 (증분 수집용)
+ * 
+ * 레거시 API와 새로운 Open API를 모두 지원합니다.
  */
 export async function fetchStoreListByDate(
   lastModDate: string,
@@ -234,6 +374,15 @@ export async function fetchStoreListByDate(
   pageNo = 1,
   numOfRows = 1000
 ): Promise<PublicDataStore[]> {
+  const apiVersion = getApiVersion();
+  
+  if (apiVersion === 'open') {
+    // 새로운 Open API 사용 (Swagger 문서에서 날짜 필터링 방법 확인 필요)
+    logger.warn('Open API date filtering not yet implemented, using legacy API');
+    // TODO: Open API의 날짜 필터링 방법 확인 후 구현
+  }
+  
+  // 레거시 API 사용 (기본)
   const params = new URLSearchParams({
     serviceKey: apiKey,
     key: lastModDate, // 수정일 (YYYYMMDD 형식)
@@ -242,7 +391,7 @@ export async function fetchStoreListByDate(
     pageNo: String(pageNo),
   });
 
-  const url = `${PUBLIC_DATA_API_INCREMENTAL_URL}?${params.toString()}`;
+  const url = `${LEGACY_API_INCREMENTAL_URL}?${params.toString()}`;
 
   try {
     // 외부 API 호출에 타임아웃 설정 (20초)
