@@ -159,6 +159,8 @@ export async function GET(request: NextRequest) {
       console.error('Failed to fetch lastUpdatedResult:', error);
     }
 
+    const publishedStores = totalPublished?.count || 0;
+
     return NextResponse.json({
       totalStores: totalStores?.count || 0,
       todayNewFetched: todayNewFetched?.count || 0,
