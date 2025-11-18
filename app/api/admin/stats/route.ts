@@ -12,10 +12,16 @@ export async function GET(request: NextRequest) {
   try {
     const env = getCloudflareEnv();
     
-    // Rate Limit 체크
-    const rateLimitResult = await checkAdminAPIRateLimit(env, request);
-    if (!rateLimitResult.allowed) {
-      return createRateLimitResponse(rateLimitResult);
+    // Rate Limit 체크 (RATE_LIMIT KV가 없어도 동작하도록 try-catch)
+    let rateLimitResult;
+    try {
+      rateLimitResult = await checkAdminAPIRateLimit(env, request);
+      if (!rateLimitResult.allowed) {
+        return createRateLimitResponse(rateLimitResult);
+      }
+    } catch (rateLimitError) {
+      // Rate Limit 체크 실패 시에도 계속 진행 (개발 환경 고려)
+      console.warn('Rate limit check failed, continuing:', rateLimitError);
     }
     
     if (!env?.DB) {

@@ -11,10 +11,12 @@ import {
   ToggleButtonGroup,
   Chip,
   CircularProgress,
+  Button,
 } from '@mui/material';
 import { Grid } from '@mui/material';
-import { Error as ErrorIcon, Warning as WarningIcon, Info as InfoIcon } from '@mui/icons-material';
+import { Error as ErrorIcon, Warning as WarningIcon, Info as InfoIcon, CloudDownload } from '@mui/icons-material';
 import { useState, useCallback, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
 const timeRanges = ['오늘', '7일', '30일', '90일'] as const;
 
@@ -32,6 +34,7 @@ interface Stats {
  * 관리자 Dashboard 페이지
  */
 export default function AdminDashboardPage() {
+  const router = useRouter();
   const [selectedRange, setSelectedRange] = useState<(typeof timeRanges)[number]>('오늘');
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -101,7 +104,16 @@ export default function AdminDashboardPage() {
             >
               대시보드
             </Typography>
-            <ToggleButtonGroup
+            <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+              <Button
+                variant="contained"
+                startIcon={<CloudDownload />}
+                onClick={() => router.push('/admin/fetch')}
+                sx={{ borderRadius: 2 }}
+              >
+                수동 수집
+              </Button>
+              <ToggleButtonGroup
               value={selectedRange}
               exclusive
               onChange={handleRangeChange}
@@ -131,6 +143,7 @@ export default function AdminDashboardPage() {
                 </ToggleButton>
               ))}
             </ToggleButtonGroup>
+            </Box>
           </Box>
         </Container>
       </Box>
