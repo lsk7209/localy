@@ -16,6 +16,7 @@ import {
   Analytics as AnalyticsIcon,
   Work as WorkIcon,
   Settings as SettingsIcon,
+  CloudDownload as CloudDownloadIcon,
 } from '@mui/icons-material';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -27,6 +28,7 @@ const menuItems = [
   { href: '/admin', label: 'Dashboard', icon: DashboardIcon },
   { href: '/admin/analytics', label: 'Analytics', icon: AnalyticsIcon },
   { href: '/admin/jobs', label: 'Jobs', icon: WorkIcon },
+  { href: '/admin/fetch', label: '수집 관리', icon: CloudDownloadIcon },
   { href: '/admin/settings', label: 'Settings', icon: SettingsIcon },
 ] as const;
 
