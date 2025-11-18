@@ -226,7 +226,23 @@ export async function handleInitialFetch(
     logger.info('Initial fetch completed', {
       totalStoresInserted,
       nextIndex: nextDongIndex + WORKER_CONFIG.INITIAL_FETCH_DONG_COUNT,
+      dongListLength: dongList.length,
+      processedDongs: dongList.length,
     });
+    
+    // totalStoresInserted가 0이면 경고 로그
+    if (totalStoresInserted === 0) {
+      logger.warn('Initial fetch completed but no stores were inserted', {
+        nextDongIndex,
+        dongListLength: dongList.length,
+        possibleReasons: [
+          'API returned empty arrays for all dongs',
+          'All stores already exist in database (onConflictDoNothing)',
+          'API key may be invalid or expired',
+          'API endpoint may have changed',
+        ],
+      });
+    }
   } catch (error) {
     const errorObj = error instanceof Error ? error : new Error(String(error));
     logger.error('Initial fetch failed', {

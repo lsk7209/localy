@@ -75,6 +75,12 @@ export async function POST(request: NextRequest) {
     });
     
     try {
+      // 수집 실행 전 로깅
+      logger.info('Starting initial fetch', {
+        beforeCount: beforeCountValue,
+        timestamp: new Date().toISOString(),
+      });
+      
       await handleInitialFetch(env as Env, ctx as any);
       
       // 수집 후 데이터베이스 카운트 확인 (약간의 지연 후)
