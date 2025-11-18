@@ -62,6 +62,7 @@ export default function FetchManagementPage() {
   const [error, setError] = useState<string | null>(null);
   const [triggering, setTriggering] = useState<'initial' | 'incremental' | null>(null);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+  const [lastFetchResult, setLastFetchResult] = useState<{ type: 'initial' | 'incremental'; insertedCount: number; beforeCount: number; afterCount: number } | null>(null);
 
   // 초기 로드 및 주기적 업데이트
   useEffect(() => {
@@ -101,6 +102,7 @@ export default function FetchManagementPage() {
   const triggerInitialFetch = useCallback(async () => {
     try {
       setTriggering('initial');
+      setError(null);
       const response = await fetch('/api/fetch/initial', {
         method: 'POST',
         headers: {
@@ -115,12 +117,30 @@ export default function FetchManagementPage() {
 
       const data = await response.json();
       
+      // 수집 결과 저장
+      if (data.data) {
+        setLastFetchResult({
+          type: 'initial',
+          insertedCount: data.data.insertedCount || 0,
+          beforeCount: data.data.beforeCount || 0,
+          afterCount: data.data.afterCount || 0,
+        });
+        
+        // 수집 결과에 따른 메시지 표시
+        if (data.data.insertedCount > 0) {
+          // 성공 메시지는 Alert로 표시하지 않고 상태만 갱신
+        } else {
+          setError('수집이 완료되었지만 새로운 데이터가 저장되지 않았습니다. API 응답을 확인하세요.');
+        }
+      }
+      
       // 성공 후 상태 갱신
       setTimeout(() => {
         fetchStatus();
       }, 2000);
     } catch (err) {
       setError(err instanceof Error ? err.message : '알 수 없는 오류');
+      setLastFetchResult(null);
     } finally {
       setTriggering(null);
     }
@@ -132,6 +152,7 @@ export default function FetchManagementPage() {
   const triggerIncrementalFetch = useCallback(async () => {
     try {
       setTriggering('incremental');
+      setError(null);
       const response = await fetch('/api/fetch/incremental', {
         method: 'POST',
         headers: {
@@ -146,12 +167,30 @@ export default function FetchManagementPage() {
 
       const data = await response.json();
       
+      // 수집 결과 저장
+      if (data.data) {
+        setLastFetchResult({
+          type: 'incremental',
+          insertedCount: data.data.insertedCount || 0,
+          beforeCount: data.data.beforeCount || 0,
+          afterCount: data.data.afterCount || 0,
+        });
+        
+        // 수집 결과에 따른 메시지 표시
+        if (data.data.insertedCount > 0) {
+          // 성공 메시지는 Alert로 표시하지 않고 상태만 갱신
+        } else {
+          setError('수집이 완료되었지만 새로운 데이터가 저장되지 않았습니다. API 응답을 확인하세요.');
+        }
+      }
+      
       // 성공 후 상태 갱신
       setTimeout(() => {
         fetchStatus();
       }, 2000);
     } catch (err) {
       setError(err instanceof Error ? err.message : '알 수 없는 오류');
+      setLastFetchResult(null);
     } finally {
       setTriggering(null);
     }
@@ -207,6 +246,14 @@ export default function FetchManagementPage() {
         {error && (
           <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
             {error}
+          </Alert>
+        )}
+        
+        {/* 수집 결과 메시지 */}
+        {lastFetchResult && lastFetchResult.insertedCount > 0 && (
+          <Alert severity="success" sx={{ mb: 3 }} onClose={() => setLastFetchResult(null)}>
+            {lastFetchResult.type === 'initial' ? '초기' : '증분'} 수집 완료: {lastFetchResult.insertedCount.toLocaleString()}개 데이터 저장됨
+            (이전: {lastFetchResult.beforeCount.toLocaleString()} → 현재: {lastFetchResult.afterCount.toLocaleString()})
           </Alert>
         )}
 
