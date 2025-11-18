@@ -164,17 +164,51 @@ export async function handleInitialFetch(
           });
 
           if (insertValues.length > 0) {
+            // INSERT 전 카운트 확인
+            let beforeCount = 0;
+            try {
+              const beforeResult = await db.select({ count: sql<number>`COUNT(*)` }).from(rawStore).get();
+              beforeCount = beforeResult?.count || 0;
+            } catch (countError) {
+              logger.warn('Failed to get before count', {
+                error: countError instanceof Error ? countError.message : String(countError),
+              });
+            }
+
             // Cloudflare D1 배치 INSERT 제한 고려하여 청크로 분할
             const chunks = chunkArray(insertValues, D1_BATCH_LIMITS.MAX_INSERT_ROWS);
             for (const chunk of chunks) {
               try {
+                // INSERT 시도
                 await db.insert(rawStore).values(chunk).onConflictDoNothing();
-                totalStoresInserted += chunk.length;
-                logger.info('Batch insert successful', {
+                
+                // INSERT 후 실제 저장된 개수 확인
+                let afterCount = beforeCount;
+                try {
+                  const afterResult = await db.select({ count: sql<number>`COUNT(*)` }).from(rawStore).get();
+                  afterCount = afterResult?.count || 0;
+                } catch (countError) {
+                  logger.warn('Failed to get after count', {
+                    error: countError instanceof Error ? countError.message : String(countError),
+                  });
+                }
+                
+                const actuallyInserted = afterCount - beforeCount;
+                beforeCount = afterCount; // 다음 청크를 위한 카운트 업데이트
+                
+                totalStoresInserted += actuallyInserted;
+                
+                logger.info('Batch insert completed', {
                   dongCode,
                   pageNo,
                   chunkSize: chunk.length,
+                  actuallyInserted,
+                  beforeCount: beforeCount - actuallyInserted,
+                  afterCount,
                   totalInserted: totalStoresInserted,
+                  note: actuallyInserted < chunk.length 
+                    ? `${chunk.length - actuallyInserted} items were duplicates (onConflictDoNothing)`
+                    : 'All items inserted successfully',
                 });
               } catch (error) {
                 logger.warn('Batch insert failed for dong, falling back to individual upserts', {
