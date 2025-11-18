@@ -248,9 +248,19 @@ export default function FetchManagementPage() {
             <Grid item xs={12} md={4}>
               <Card>
                 <CardContent>
-                  <Typography variant="h6" sx={{ mb: 2, fontWeight: 700 }}>
-                    데이터베이스 통계
-                  </Typography>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                    <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                      데이터베이스 통계
+                    </Typography>
+                    <Button
+                      size="small"
+                      startIcon={<Refresh />}
+                      onClick={fetchStatus}
+                      disabled={loading}
+                    >
+                      새로고침
+                    </Button>
+                  </Box>
                   <Stack spacing={2}>
                     <Box>
                       <Typography variant="body2" color="text.secondary">
@@ -259,6 +269,11 @@ export default function FetchManagementPage() {
                       <Typography variant="h4" sx={{ fontWeight: 700 }}>
                         {status.database.rawStore.toLocaleString()}
                       </Typography>
+                      {status.database.rawStore > 0 && (
+                        <Typography variant="caption" color="success.main">
+                          ✓ 수집 완료
+                        </Typography>
+                      )}
                     </Box>
                     <Divider />
                     <Box>
@@ -268,6 +283,11 @@ export default function FetchManagementPage() {
                       <Typography variant="h4" sx={{ fontWeight: 700 }}>
                         {status.database.bizPlace.toLocaleString()}
                       </Typography>
+                      {status.database.bizPlace > 0 && (
+                        <Typography variant="caption" color="success.main">
+                          ✓ 정규화 완료
+                        </Typography>
+                      )}
                     </Box>
                     <Divider />
                     <Box>
@@ -277,8 +297,18 @@ export default function FetchManagementPage() {
                       <Typography variant="h4" sx={{ fontWeight: 700 }}>
                         {status.database.bizMeta.toLocaleString()}
                       </Typography>
+                      {status.database.bizMeta > 0 && (
+                        <Typography variant="caption" color="success.main">
+                          ✓ 발행 준비 완료
+                        </Typography>
+                      )}
                     </Box>
                   </Stack>
+                  {status.database.rawStore === 0 && (
+                    <Alert severity="info" sx={{ mt: 2 }}>
+                      아직 수집된 데이터가 없습니다. 초기 수집을 시작하세요.
+                    </Alert>
+                  )}
                 </CardContent>
               </Card>
             </Grid>
