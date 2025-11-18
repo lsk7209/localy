@@ -212,7 +212,6 @@ export async function handleInitialFetch(
               originalStoresCount: stores.length,
             });
           }
-          }
           
           cpuTimer.checkpoint(`dong-${dongCode}-inserted`);
           logPerformanceWarning(cpuTimer, 'initial-fetch', { dongCode, storesProcessed: stores.length });
