@@ -218,11 +218,23 @@ async function fetchStoreListInDongLegacy(
     }
 
     // items가 없거나 빈 배열인 경우 로깅
-    if (!data.response.body.items) {
+    // items가 null이거나 undefined인 경우 처리
+    if (data.response.body.items === null || data.response.body.items === undefined) {
       logger.warn('API response missing items field', {
         dongCode,
         pageNo,
         body: JSON.stringify(data.response.body).substring(0, 1000),
+        totalCount: data.response.body.totalCount,
+        numOfRows: data.response.body.numOfRows,
+      });
+      return [];
+    }
+    
+    // items가 빈 문자열인 경우 처리
+    if (typeof data.response.body.items === 'string' && data.response.body.items.trim() === '') {
+      logger.warn('API response items is empty string', {
+        dongCode,
+        pageNo,
         totalCount: data.response.body.totalCount,
         numOfRows: data.response.body.numOfRows,
       });

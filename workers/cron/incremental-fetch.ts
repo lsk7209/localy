@@ -6,7 +6,7 @@ import { rawStore } from '@/db/schema';
 import { requirePublicDataApiKey } from '../utils/env';
 import { WORKER_CONFIG } from '../constants';
 import { fetchStoreListByDate, formatDateForApi } from '../utils/public-data-api';
-import { sql, eq } from 'drizzle-orm';
+import { sql, eq, count } from 'drizzle-orm';
 import { CPUTimer, logPerformanceWarning, chunkArray, D1_BATCH_LIMITS, withTimeout, PERFORMANCE_THRESHOLDS } from '../utils/performance';
 import { prepareStoreForInsert, upsertStoresIndividually } from '../utils/store-processing';
 import { logger } from '../utils/logger';
@@ -96,6 +96,15 @@ export async function handleIncrementalFetch(
         const insertValues = stores.map((store) => {
           const prepared = prepareStoreForInsert(store);
           
+          // sourceId 검증
+          if (!prepared.sourceId || prepared.sourceId.trim() === '') {
+            logger.error('Store missing sourceId after preparation', {
+              pageNo,
+              store: JSON.stringify(store).substring(0, 200),
+            });
+            return null; // null 반환하여 필터링
+          }
+          
           // 좌표 검증 실패 시 경고
           if (store.lat !== undefined && store.lng !== undefined && !prepared.lat) {
             logger.warn('Invalid coordinates for store', {
@@ -106,35 +115,111 @@ export async function handleIncrementalFetch(
           }
           
           return prepared;
+        }).filter((item): item is NonNullable<typeof item> => item !== null); // null 필터링
+
+        logger.info('Prepared stores for insert', {
+          pageNo,
+          originalCount: stores.length,
+          preparedCount: insertValues.length,
+          filteredCount: stores.length - insertValues.length,
         });
 
         cpuTimer.checkpoint(`page-${pageNo}-prepared`);
 
-        // 배치 INSERT (Cloudflare D1 제한 고려)
-        const chunks = chunkArray(insertValues, D1_BATCH_LIMITS.MAX_INSERT_ROWS);
-        for (const chunk of chunks) {
+        if (insertValues.length > 0) {
+          // INSERT 전 카운트 확인 (첫 청크 전에만 한 번)
+          let beforeCount = 0;
           try {
-            // 배치 INSERT 시도
-            await db.insert(rawStore).values(chunk).onConflictDoNothing();
-            totalStoresUpdated += chunk.length;
-          } catch (error) {
-            // 배치 INSERT 실패 시 개별 UPSERT로 폴백
-            logger.warn('Batch insert failed, falling back to individual upserts', {
-              error: error instanceof Error ? error.message : String(error),
-              chunkSize: chunk.length,
+            const beforeResult = await db.select({ count: count() }).from(rawStore).get();
+            beforeCount = beforeResult?.count || 0;
+          } catch (countError) {
+            logger.warn('Failed to get before count', {
+              error: countError instanceof Error ? countError.message : String(countError),
             });
-            
-            const successCount = await upsertStoresIndividually(
-              db,
-              chunk,
-              (sourceId, error) => {
-                logger.error('Failed to upsert store', {
-                  sourceId,
-                }, error);
-              }
-            );
-            totalStoresUpdated += successCount;
           }
+
+          // 배치 INSERT (Cloudflare D1 제한 고려)
+          const chunks = chunkArray(insertValues, D1_BATCH_LIMITS.MAX_INSERT_ROWS);
+          let chunkIndex = 0;
+          
+          for (const chunk of chunks) {
+            chunkIndex++;
+            const isLastChunk = chunkIndex === chunks.length;
+            
+            try {
+              // INSERT 시도
+              await db.insert(rawStore).values(chunk).onConflictDoNothing();
+              
+              // 마지막 청크이거나 일정 간격으로만 카운트 확인 (성능 최적화)
+              // 모든 청크마다 카운트하면 성능 저하가 발생할 수 있음
+              let actuallyInserted = chunk.length; // 기본값: 모두 저장된 것으로 가정
+              
+              if (isLastChunk || chunkIndex % 5 === 0) {
+                // 마지막 청크이거나 5개 청크마다 실제 카운트 확인
+                let afterCount = beforeCount;
+                try {
+                  const afterResult = await db.select({ count: count() }).from(rawStore).get();
+                  afterCount = afterResult?.count || 0;
+                  actuallyInserted = afterCount - beforeCount;
+                  beforeCount = afterCount; // 다음 확인을 위한 카운트 업데이트
+                } catch (countError) {
+                  logger.warn('Failed to get after count', {
+                    error: countError instanceof Error ? countError.message : String(countError),
+                  });
+                  // 카운트 실패 시 기본값 사용 (chunk.length)
+                }
+              } else {
+                // 중간 청크는 기본값 사용 (성능 최적화)
+                beforeCount += chunk.length; // 추정치 업데이트
+              }
+              
+              totalStoresUpdated += actuallyInserted;
+              
+              logger.info('Batch insert completed', {
+                pageNo,
+                chunkIndex,
+                totalChunks: chunks.length,
+                chunkSize: chunk.length,
+                actuallyInserted,
+                totalUpdated: totalStoresUpdated,
+                note: isLastChunk || chunkIndex % 5 === 0
+                  ? (actuallyInserted < chunk.length 
+                      ? `${chunk.length - actuallyInserted} items were duplicates (onConflictDoNothing)`
+                      : 'All items inserted successfully')
+                  : 'Count verified periodically (performance optimization)',
+              });
+            } catch (error) {
+              // 배치 INSERT 실패 시 개별 UPSERT로 폴백
+              logger.warn('Batch insert failed, falling back to individual upserts', {
+                pageNo,
+                error: error instanceof Error ? error.message : String(error),
+                errorStack: error instanceof Error ? error.stack : undefined,
+                chunkSize: chunk.length,
+              });
+              
+              const successCount = await upsertStoresIndividually(
+                db,
+                chunk,
+                (sourceId, error) => {
+                  logger.error('Failed to upsert store', {
+                    sourceId,
+                    pageNo,
+                  }, error);
+                }
+              );
+              totalStoresUpdated += successCount;
+              logger.info('Individual upserts completed', {
+                pageNo,
+                successCount,
+                totalUpdated: totalStoresUpdated,
+              });
+            }
+          }
+        } else {
+          logger.warn('No valid stores to insert after preparation', {
+            pageNo,
+            originalStoresCount: stores.length,
+          });
         }
 
         cpuTimer.checkpoint(`page-${pageNo}-inserted`);
@@ -193,6 +278,20 @@ export async function handleIncrementalFetch(
       lastModDate: now,
       finalPage: pageNo,
     });
+    
+    // totalStoresUpdated가 0이면 경고 로그
+    if (totalStoresUpdated === 0) {
+      logger.warn('Incremental fetch completed but no stores were updated', {
+        lastModDate: formattedDate,
+        possibleReasons: [
+          'API returned empty arrays for all pages',
+          'All stores already exist in database (onConflictDoNothing)',
+          'API key may be invalid or expired',
+          'API endpoint may have changed',
+          'No stores modified on this date',
+        ],
+      });
+    }
   } catch (error) {
     const errorObj = error instanceof Error ? error : new Error(String(error));
     logger.error('Incremental fetch failed', {

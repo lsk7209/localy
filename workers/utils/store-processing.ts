@@ -22,19 +22,25 @@ export function prepareStoreForInsert(store: PublicDataStore): {
   rawJson: string;
 } {
   // sourceId 추출 (다양한 필드명 시도)
-  let sourceId = store.source_id || 
-                 (store as any).bizesId || 
+  // 공공데이터 API에서 사용 가능한 필드명: bizesId, bizId, id, source_id 등
+  let sourceId = (store as any).bizesId || 
                  (store as any).bizId || 
+                 store.source_id || 
                  (store as any).id || 
                  '';
   
+  // 문자열로 변환 및 공백 제거
+  sourceId = String(sourceId || '').trim();
+  
   // sourceId가 없으면 에러 (primary key이므로 필수)
-  if (!sourceId || sourceId.trim() === '') {
+  if (!sourceId || sourceId === '') {
     // 대체 ID 생성 (임시)
+    // 실제 운영 환경에서는 sourceId가 반드시 있어야 하므로 경고 로그
     const fallbackId = `temp_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
     console.warn('Store missing source_id, using fallback ID', {
       store: JSON.stringify(store).substring(0, 200),
       fallbackId,
+      availableKeys: Object.keys(store).slice(0, 10),
     });
     sourceId = fallbackId;
   }
