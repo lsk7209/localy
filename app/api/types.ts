@@ -1,5 +1,17 @@
 import type { D1Database, KVNamespace, Queue } from '@cloudflare/workers-types';
 
+// OpenNext의 getCloudflareContext를 동적으로 import
+let getCloudflareContextFn: (() => { env: CloudflareEnv }) | null = null;
+try {
+  // @ts-expect-error: OpenNext의 getCloudflareContext는 런타임에만 사용 가능
+  const openNextCloudflare = require('@opennextjs/cloudflare');
+  if (typeof openNextCloudflare.getCloudflareContext === 'function') {
+    getCloudflareContextFn = openNextCloudflare.getCloudflareContext;
+  }
+} catch {
+  // @opennextjs/cloudflare를 사용할 수 없는 경우
+}
+
 /**
  * Cloudflare Pages Functions 환경 변수 타입 정의
  * Cloudflare Pages에서는 env가 런타임에 주입됨
@@ -30,7 +42,20 @@ export interface CloudflareEnv {
  * Dashboard에서 설정한 바인딩 이름이 그대로 환경 변수 이름이 됩니다.
  */
 export function getCloudflareEnv(): CloudflareEnv {
-  // OpenNext가 AsyncLocalStorage를 통해 저장한 컨텍스트 접근
+  // 1. @opennextjs/cloudflare의 getCloudflareContext 사용 (우선순위 1)
+  if (getCloudflareContextFn) {
+    try {
+      const context = getCloudflareContextFn();
+      if (context?.env) {
+        return context.env as CloudflareEnv;
+      }
+    } catch (error) {
+      // getCloudflareContext 호출 실패 시 다음 방법 시도
+      console.warn('Failed to get Cloudflare context from getCloudflareContext:', error);
+    }
+  }
+  
+  // 2. OpenNext가 AsyncLocalStorage를 통해 저장한 컨텍스트 접근 (우선순위 2)
   try {
     // @ts-expect-error: OpenNext의 심볼은 런타임에만 사용 가능
     const cloudflareContextSymbol = Symbol.for('__cloudflare-context__');
@@ -43,26 +68,12 @@ export function getCloudflareEnv(): CloudflareEnv {
     // 컨텍스트를 가져올 수 없는 경우
   }
   
-  // @opennextjs/cloudflare 패키지의 getCloudflareContext 사용 시도
-  try {
-    // @ts-expect-error: OpenNext의 getCloudflareContext는 런타임에만 사용 가능
-    const { getCloudflareContext } = require('@opennextjs/cloudflare');
-    if (typeof getCloudflareContext === 'function') {
-      const context = getCloudflareContext();
-      if (context?.env) {
-        return context.env as CloudflareEnv;
-      }
-    }
-  } catch {
-    // getCloudflareContext를 사용할 수 없는 경우
-  }
-  
-  // 런타임에만 접근하도록 보장 (빌드 시점 에러 방지)
+  // 3. 런타임에만 접근하도록 보장 (빌드 시점 에러 방지)
   if (typeof process === 'undefined' || !process.env) {
     return {} as CloudflareEnv;
   }
   
-  // OpenNext가 populateProcessEnv를 통해 문자열 값만 process.env에 주입
+  // 4. OpenNext가 populateProcessEnv를 통해 문자열 값만 process.env에 주입
   // D1/KV 등 객체 바인딩은 process.env에 없으므로 위의 방법 사용 필요
   const env = (process.env as unknown as CloudflareEnv) || {};
   
