@@ -2,16 +2,15 @@
 
 import { Box, Container, TextField, InputAdornment, Typography } from '@mui/material';
 import { Search } from '@mui/icons-material';
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
 
 /**
- * 검색 페이지
- * /shop 페이지로 리다이렉트하거나 검색 결과를 표시
+ * 검색 페이지 콘텐츠 컴포넌트
  */
-export default function SearchPage() {
+function SearchPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '');
@@ -86,6 +85,42 @@ export default function SearchPage() {
       </Container>
       <Footer />
     </>
+  );
+}
+
+/**
+ * 검색 페이지
+ * /shop 페이지로 리다이렉트하거나 검색 결과를 표시
+ */
+export default function SearchPage() {
+  return (
+    <Suspense fallback={
+      <>
+        <Header />
+        <Container maxWidth="lg" sx={{ py: 4 }}>
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 3,
+              minHeight: '60vh',
+              justifyContent: 'center',
+            }}
+          >
+            <Typography variant="h3" component="h1" sx={{ fontWeight: 700, mb: 2 }}>
+              상가 검색
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              로딩 중...
+            </Typography>
+          </Box>
+        </Container>
+        <Footer />
+      </>
+    }>
+      <SearchPageContent />
+    </Suspense>
   );
 }
 
