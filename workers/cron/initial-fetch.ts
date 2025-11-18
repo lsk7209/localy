@@ -101,7 +101,7 @@ export async function handleInitialFetch(
             let pageNo = (isResumingDong && resumePage) ? resumePage : 1;
             let hasMore = true;
 
-        while (hasMore) {
+            while (hasMore) {
           // 총 실행 시간 제한 확인 (25초 경고 임계값)
           const elapsedTime = cpuTimer.getElapsed();
           if (elapsedTime > PERFORMANCE_THRESHOLDS.WARNING_TOTAL_MS) {
