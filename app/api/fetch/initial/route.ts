@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCloudflareEnv } from '../../types';
 import { handleInitialFetch } from '@/workers/cron/initial-fetch';
 import { logger } from '@/workers/utils/logger';
+import type { Env } from '@/workers/types';
 
 /**
  * 초기 수집 수동 트리거 API
@@ -28,9 +29,9 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    if (!env?.DB) {
+    if (!env?.DB || !env?.SETTINGS) {
       return NextResponse.json(
-        { error: 'Database not available' },
+        { error: 'Database or Settings KV not available' },
         { status: 503 }
       );
     }
@@ -49,8 +50,9 @@ export async function POST(request: NextRequest) {
     };
     
     // 초기 수집 실행
+    // DB와 SETTINGS가 확인되었으므로 Env 타입으로 단언
     logger.info('Manual initial fetch triggered');
-    await handleInitialFetch(env, ctx as any);
+    await handleInitialFetch(env as Env, ctx as any);
     
     return NextResponse.json({
       success: true,
