@@ -6,6 +6,7 @@ import { handleInitialFetch } from './initial-fetch';
 import { handleIncrementalFetch } from './incremental-fetch';
 import { CPUTimer, logPerformanceWarning, processBatch, withTimeout } from '../utils/performance';
 import { logger } from '../utils/logger';
+import { retryWithBackoff } from '../utils/retry';
 
 /**
  * 재시도 워커
@@ -54,17 +55,28 @@ export async function handleRetry(
     // 재시도 처리 (배치 처리로 최적화)
     const processRetry = async (message: FailQueueMessage): Promise<{ success: boolean; message: FailQueueMessage }> => {
       try {
-        // 재시도 횟수에 따라 대기 시간 증가 (지수 백오프)
-        const backoffDelay = Math.min(1000 * Math.pow(2, message.retryCount), 30000); // 최대 30초
-        if (backoffDelay > 0) {
-          await new Promise((resolve) => setTimeout(resolve, backoffDelay));
-        }
-
-        // 타임아웃 설정 (25초, 총 실행 시간 제한 고려)
-        await withTimeout(
-          processFailedMessage(message.payload, env, ctx),
-          25000,
-          `Retry timeout for message type: ${(message.payload as Record<string, unknown>)?.type}`
+        // retryWithBackoff를 사용하여 재시도 로직 통일
+        await retryWithBackoff(
+          async () => {
+            // 타임아웃 설정 (25초, 총 실행 시간 제한 고려)
+            return await withTimeout(
+              processFailedMessage(message.payload, env, ctx),
+              25000,
+              `Retry timeout for message type: ${(message.payload as Record<string, unknown>)?.type}`
+            );
+          },
+          {
+            maxRetries: 1, // 이미 실패 큐에 있으므로 1회만 재시도
+            initialDelayMs: 1000 * Math.pow(2, message.retryCount), // 기존 재시도 횟수에 따라 지수 백오프
+            maxDelayMs: 30000, // 최대 30초
+            onRetry: (attempt) => {
+              logger.warn('Retrying failed message', {
+                payload: message.payload,
+                attempt,
+                retryCount: message.retryCount,
+              });
+            },
+          }
         );
 
         logger.info('Successfully retried message', {

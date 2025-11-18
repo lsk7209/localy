@@ -11,6 +11,7 @@ import { CPUTimer, logPerformanceWarning, chunkArray, D1_BATCH_LIMITS, withTimeo
 import { prepareStoreForInsert, upsertStoresIndividually } from '../utils/store-processing';
 import { logger } from '../utils/logger';
 import { safeParseInt } from '../utils/validation';
+import { retryWithBackoff, isRetryableError } from '../utils/retry';
 
 /**
  * 증분 수집 Cron 핸들러
@@ -77,11 +78,31 @@ export async function handleIncrementalFetch(
       }
 
       try {
-        // 외부 API 호출에 타임아웃 설정 (20초, 총 실행 시간 제한 고려)
-        const stores = await withTimeout(
-          fetchStoreListByDate(formattedDate, apiKey, pageNo),
-          20000,
-          `API timeout for page ${pageNo}`
+        // 외부 API 호출에 타임아웃 및 재시도 로직 적용
+        const stores = await retryWithBackoff(
+          async () => {
+            return await withTimeout(
+              fetchStoreListByDate(formattedDate, apiKey, pageNo),
+              20000,
+              `API timeout for page ${pageNo}`
+            );
+          },
+          {
+            maxRetries: 3,
+            initialDelayMs: 1000,
+            maxDelayMs: 10000,
+            shouldRetry: (error) => {
+              // 타임아웃이나 네트워크 에러만 재시도
+              return isRetryableError(error);
+            },
+            onRetry: (attempt) => {
+              logger.warn('Retrying API fetch for page', {
+                pageNo,
+                attempt,
+                lastModDate: formattedDate,
+              });
+            },
+          }
         );
         consecutiveErrors = 0; // 성공 시 에러 카운터 리셋
 
@@ -260,9 +281,8 @@ export async function handleIncrementalFetch(
           break;
         }
 
-        // 재시도 전 대기 (지수 백오프)
-        const backoffDelay = Math.min(1000 * Math.pow(2, consecutiveErrors - 1), 10000);
-        await new Promise((resolve) => setTimeout(resolve, backoffDelay));
+        // 재시도 전 대기 (지수 백오프) - retryWithBackoff가 이미 처리했으므로 여기서는 추가 대기 불필요
+        // consecutiveErrors는 이미 증가했으므로 다음 루프에서 자동으로 재시도됨
       }
     }
 

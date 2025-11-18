@@ -12,6 +12,7 @@ import { logger } from '../utils/logger';
 import { safeParseInt } from '../utils/validation';
 import { getSettingsBatch } from '../utils/kv';
 import { sql } from 'drizzle-orm';
+import { retryWithBackoff } from '../utils/retry';
 
 /**
  * 초기 수집 Cron 핸들러
@@ -92,15 +93,13 @@ export async function handleInitialFetch(
         isResumingDong = false;
       }
       
-      let retryCount = 0;
-      const maxRetries = 3;
-      let success = false;
-
-      while (retryCount < maxRetries && !success) {
-        try {
-        // 첫 페이지 조회 (이전 실행에서 중단된 경우 해당 페이지부터 재개)
-        let pageNo = (isResumingDong && resumePage) ? resumePage : 1;
-        let hasMore = true;
+      // 재시도 로직을 retryWithBackoff로 대체
+      try {
+        await retryWithBackoff(
+          async () => {
+            // 첫 페이지 조회 (이전 실행에서 중단된 경우 해당 페이지부터 재개)
+            let pageNo = (isResumingDong && resumePage) ? resumePage : 1;
+            let hasMore = true;
 
         while (hasMore) {
           // 총 실행 시간 제한 확인 (25초 경고 임계값)
@@ -278,41 +277,48 @@ export async function handleInitialFetch(
           }
         }
 
-        success = true;
-        // 해당 동 완료 시 진행 상황 초기화
-        await setSetting(env, 'initial_fetch_last_dong', '');
-        await setSetting(env, 'initial_fetch_last_page', '1');
-        
-        logger.info('Fetched stores for dong', {
-          dongCode,
-          storesInserted: totalStoresInserted,
-        });
-      } catch (error) {
-          retryCount++;
-          const errorObj = error instanceof Error ? error : new Error(String(error));
-          
-          if (retryCount >= maxRetries) {
-            logger.error(`Failed to fetch stores for dong after ${maxRetries} retries`, {
+            // 해당 동 완료 시 진행 상황 초기화
+            await setSetting(env, 'initial_fetch_last_dong', '');
+            await setSetting(env, 'initial_fetch_last_page', '1');
+            
+            logger.info('Fetched stores for dong', {
               dongCode,
-              retryCount,
-            }, errorObj);
-            // 최대 재시도 횟수 초과 시 실패 큐에 추가
-            await addToFailQueue(
-              env,
-              { type: 'initial_fetch', dongCode },
-              errorObj.message
-            );
-          } else {
-            // 재시도 전 대기 (지수 백오프)
-            const backoffDelay = Math.min(1000 * Math.pow(2, retryCount - 1), 10000);
-            await new Promise((resolve) => setTimeout(resolve, backoffDelay));
-            logger.warn('Retrying fetch for dong', {
-              dongCode,
-              attempt: retryCount + 1,
-              maxRetries,
+              storesInserted: totalStoresInserted,
             });
+          },
+          {
+            maxRetries: 3,
+            initialDelayMs: 1000,
+            maxDelayMs: 10000,
+            onRetry: (attempt, error) => {
+              logger.warn('Retrying fetch for dong', {
+                dongCode,
+                attempt,
+                maxRetries: 3,
+                error: error instanceof Error ? error.message : String(error),
+              });
+            },
+            onFailure: async (error) => {
+              const errorObj = error instanceof Error ? error : new Error(String(error));
+              logger.error('Failed to fetch stores for dong after max retries', {
+                dongCode,
+              }, errorObj);
+              // 최대 재시도 횟수 초과 시 실패 큐에 추가
+              await addToFailQueue(
+                env,
+                { type: 'initial_fetch', dongCode },
+                errorObj.message
+              );
+            },
           }
-        }
+        );
+      } catch (error) {
+        // retryWithBackoff가 모든 재시도를 시도한 후에도 실패한 경우
+        // onFailure 콜백에서 이미 처리했으므로 여기서는 로깅만
+        const errorObj = error instanceof Error ? error : new Error(String(error));
+        logger.error('Initial fetch failed for dong', {
+          dongCode,
+        }, errorObj);
       }
     }
 
