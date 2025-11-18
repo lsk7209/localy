@@ -11,6 +11,7 @@ import { prepareStoreForInsert, upsertStoresIndividually } from '../utils/store-
 import { logger } from '../utils/logger';
 import { safeParseInt } from '../utils/validation';
 import { getSettingsBatch } from '../utils/kv';
+import { sql } from 'drizzle-orm';
 
 /**
  * 초기 수집 Cron 핸들러
