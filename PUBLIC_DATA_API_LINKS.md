@@ -9,9 +9,31 @@
 
 ### 소상공인시장진흥공단 - 상가(상권)정보 API
 
-**서비스 ID**: `B553077`
+**서비스 ID**: `B553077`  
+**Namespace**: `15083033`  
+**Base URL**: `api.odcloud.kr/api`
 
-#### API 엔드포인트
+#### Swagger API 문서
+
+- **Swagger 문서**: https://infuser.odcloud.kr/oas/docs?namespace=15083033/v1
+- **API 엔드포인트**: `/15083033/v1/uddi:c7049f5a-d95e-4143-be96-b4d3c16130ee`
+- **데이터명**: 소상공인시장진흥공단_상가(상권)정보_20171120
+
+#### 인증키
+
+공공데이터포털에서 제공하는 두 가지 인증키:
+
+1. **일반 인증키 (Encoding)**: URL 인코딩된 키
+   - 예: `Dc%2Bm2FOHT2MQxGmXnBE3Qbuw9V4H4hJB8nKKOL6JWfWYK0Tc48AwXm7AkzGDREokxi%2BG1LeRUrqQG6NagZQ%2BAA%3D%3D`
+   - URL 파라미터로 직접 사용 가능
+
+2. **일반 인증키 (Decoding)**: 디코딩된 원본 키
+   - 예: `Dc+m2FOHT2MQxGmXnBE3Qbuw9V4H4hJB8nKKOL6JWfWYK0Tc48AwXm7AkzGDREokxi+G1LeRUrqQG6NagZQ+AA==`
+   - `URLSearchParams`를 통해 자동 인코딩 필요
+
+**권장사항**: Encoding 키를 사용하거나, Decoding 키를 사용할 경우 `URLSearchParams`를 통해 자동 인코딩
+
+#### API 엔드포인트 (레거시 - 현재 코드에서 사용 중)
 
 1. **행정동별 상가 목록 조회**
    - URL: `https://apis.data.go.kr/B553077/api/open/sdsc2/storeListInDong`
@@ -38,6 +60,7 @@
 - **공공데이터포털 상세 페이지**: 
   - 직접 검색: https://www.data.go.kr → "소상공인시장진흥공단 상가정보" 검색
   - 또는 서비스 ID로 검색: `B553077`
+- **Swagger 문서**: https://infuser.odcloud.kr/oas/docs?namespace=15083033/v1
 
 #### API 활용 신청
 
@@ -63,6 +86,8 @@
 
 ### API 호출 예시
 
+#### 레거시 API (현재 코드에서 사용 중)
+
 ```bash
 # 행정동별 상가 목록 조회
 curl "https://apis.data.go.kr/B553077/api/open/sdsc2/storeListInDong?serviceKey=YOUR_API_KEY&key=1168010100&type=json&numOfRows=10&pageNo=1"
@@ -70,6 +95,19 @@ curl "https://apis.data.go.kr/B553077/api/open/sdsc2/storeListInDong?serviceKey=
 # 수정일별 상가 목록 조회
 curl "https://apis.data.go.kr/B553077/api/open/sdsc2/storeListByDate?serviceKey=YOUR_API_KEY&key=20250118&type=json&numOfRows=10&pageNo=1"
 ```
+
+#### 새로운 Open API (Swagger 문서 참고)
+
+```bash
+# Base URL: api.odcloud.kr/api
+# 엔드포인트: /15083033/v1/uddi:c7049f5a-d95e-4143-be96-b4d3c16130ee
+# 인증키는 serviceKey 파라미터로 전달
+
+# 예시 (Swagger 문서에서 정확한 파라미터 확인 필요)
+curl "https://api.odcloud.kr/api/15083033/v1/uddi:c7049f5a-d95e-4143-be96-b4d3c16130ee?serviceKey=YOUR_ENCODED_API_KEY"
+```
+
+**참고**: 새로운 Open API의 정확한 사용법은 Swagger 문서를 확인하세요: https://infuser.odcloud.kr/oas/docs?namespace=15083033/v1
 
 ## 🔗 관련 링크
 
@@ -82,10 +120,19 @@ curl "https://apis.data.go.kr/B553077/api/open/sdsc2/storeListByDate?serviceKey=
 
 공공데이터포털에서는 두 가지 인증키를 제공합니다:
 
-1. **일반 인증키 (Decoding)**: URL 디코딩 필요
-2. **인코딩 키 (Encoding)**: URL 인코딩된 키
+1. **일반 인증키 (Encoding)**: URL 인코딩된 키
+   - URL 파라미터로 직접 사용 가능
+   - 특수문자가 이미 인코딩되어 있음 (`%2B`, `%3D` 등)
+   - 권장: 이 키를 사용하면 추가 인코딩 불필요
 
-현재 코드에서는 일반 인증키를 사용하며, `URLSearchParams`를 통해 자동으로 인코딩됩니다.
+2. **일반 인증키 (Decoding)**: 디코딩된 원본 키
+   - `+`, `=` 등의 특수문자가 포함됨
+   - `URLSearchParams`를 통해 자동으로 인코딩 필요
+   - 현재 코드에서는 이 방식을 사용 중
+
+**권장사항**: 
+- Encoding 키를 사용하는 것이 더 안전하고 편리합니다
+- Decoding 키를 사용할 경우 `URLSearchParams`를 통해 자동 인코딩됩니다
 
 ### API 제한사항
 
