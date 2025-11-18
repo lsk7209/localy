@@ -53,12 +53,20 @@ export async function POST(request: NextRequest) {
     };
     
     // 초기 수집 실행 전 데이터베이스 카운트 확인
-    const db = drizzle(env.DB, { schema });
-    const beforeCount = await db
-      .select({ count: count() })
-      .from(schema.rawStore)
-      .get();
-    const beforeCountValue = beforeCount?.count || 0;
+    let beforeCountValue = 0;
+    try {
+      const db = drizzle(env.DB, { schema });
+      const beforeCount = await db
+        .select({ count: count() })
+        .from(schema.rawStore)
+        .get();
+      beforeCountValue = beforeCount?.count || 0;
+    } catch (dbError) {
+      logger.warn('Failed to get before count, using 0', {
+        error: dbError instanceof Error ? dbError.message : String(dbError),
+      });
+      beforeCountValue = 0;
+    }
     
     // 초기 수집 실행
     // DB와 SETTINGS가 확인되었으므로 Env 타입으로 단언
@@ -72,12 +80,22 @@ export async function POST(request: NextRequest) {
       // 수집 후 데이터베이스 카운트 확인 (약간의 지연 후)
       await new Promise(resolve => setTimeout(resolve, 2000));
       
-      const afterCount = await db
-        .select({ count: count() })
-        .from(schema.rawStore)
-        .get();
-      const afterCountValue = afterCount?.count || 0;
-      const insertedCount = afterCountValue - beforeCountValue;
+      let afterCountValue = beforeCountValue;
+      let insertedCount = 0;
+      try {
+        const db = drizzle(env.DB, { schema });
+        const afterCount = await db
+          .select({ count: count() })
+          .from(schema.rawStore)
+          .get();
+        afterCountValue = afterCount?.count || 0;
+        insertedCount = afterCountValue - beforeCountValue;
+      } catch (dbError) {
+        logger.warn('Failed to get after count', {
+          error: dbError instanceof Error ? dbError.message : String(dbError),
+        });
+        // afterCountValue는 beforeCountValue 유지, insertedCount는 0
+      }
       
       logger.info('Initial fetch completed', {
         beforeCount: beforeCountValue,
@@ -97,12 +115,21 @@ export async function POST(request: NextRequest) {
       });
     } catch (fetchError) {
       // 수집 실패 시에도 카운트 확인
-      const afterCount = await db
-        .select({ count: count() })
-        .from(schema.rawStore)
-        .get();
-      const afterCountValue = afterCount?.count || 0;
-      const insertedCount = afterCountValue - beforeCountValue;
+      let afterCountValue = beforeCountValue;
+      let insertedCount = 0;
+      try {
+        const db = drizzle(env.DB, { schema });
+        const afterCount = await db
+          .select({ count: count() })
+          .from(schema.rawStore)
+          .get();
+        afterCountValue = afterCount?.count || 0;
+        insertedCount = afterCountValue - beforeCountValue;
+      } catch (dbError) {
+        logger.warn('Failed to get after count after error', {
+          error: dbError instanceof Error ? dbError.message : String(dbError),
+        });
+      }
       
       logger.error('Initial fetch failed', {
         beforeCount: beforeCountValue,
