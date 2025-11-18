@@ -276,8 +276,13 @@ async function fetchStoreListInDongLegacy(
 /**
  * 새로운 Open API로 행정동별 상가 목록 조회
  * 
- * 참고: Swagger 문서를 확인하여 정확한 파라미터를 사용해야 합니다.
- * 현재는 레거시 API와 동일한 파라미터 구조를 가정합니다.
+ * api.odcloud.kr Open API 구조:
+ * - Base URL: api.odcloud.kr/api
+ * - 엔드포인트: /15083033/v1/uddi:c7049f5a-d95e-4143-be96-b4d3c16130ee
+ * - 파라미터: serviceKey, page, perPage, cond[행정동코드::EQ] 등
+ * 
+ * 참고: 실제 파라미터 구조는 Swagger 문서를 확인해야 하지만,
+ * 일반적인 odcloud.kr API 구조를 따릅니다.
  */
 async function fetchStoreListInDongOpenApi(
   dongCode: string,
@@ -285,15 +290,32 @@ async function fetchStoreListInDongOpenApi(
   pageNo = 1,
   numOfRows = 1000
 ): Promise<PublicDataStore[]> {
-  // 새로운 Open API는 Swagger 문서를 확인하여 정확한 파라미터를 사용해야 합니다.
-  // 현재는 레거시 API와 유사한 구조를 가정합니다.
+  // odcloud.kr Open API는 일반적으로 다음과 같은 파라미터를 사용합니다:
+  // - serviceKey: 인증키
+  // - page: 페이지 번호 (1부터 시작)
+  // - perPage: 페이지당 항목 수
+  // - cond[필드명::EQ]: 필터 조건 (행정동 코드 필터링)
+  
+  // 행정동 코드 필터링 방법은 Swagger 문서를 확인해야 하지만,
+  // 일반적으로 cond 파라미터를 사용합니다.
+  // 예: cond[행정동코드::EQ]=1168010100
+  
+  // 먼저 기본 파라미터로 시도 (행정동 코드 필터 없이)
   const params = new URLSearchParams({
     serviceKey: apiKey,
-    key: dongCode, // 행정동 코드 (Swagger 문서에서 확인 필요)
-    type: 'json',
-    numOfRows: String(numOfRows),
-    pageNo: String(pageNo),
+    page: String(pageNo),
+    perPage: String(numOfRows),
   });
+  
+  // 행정동 코드 필터 추가 시도 (일반적인 odcloud.kr 필터 형식)
+  // 실제 필드명은 Swagger 문서를 확인해야 합니다.
+  // 가능한 필드명: '행정동코드', 'admCd', 'dongCode', '시군구코드' 등
+  const possibleDongFields = ['행정동코드', 'admCd', 'dongCode', '시군구코드', '시도시군구코드'];
+  
+  // 첫 번째 가능한 필드명으로 필터 추가 시도
+  // 실제로는 Swagger 문서를 확인하여 정확한 필드명을 사용해야 합니다.
+  // 일단 주석 처리하고 기본 파라미터만 사용
+  // params.append(`cond[${possibleDongFields[0]}::EQ]`, dongCode);
 
   const url = `${OPEN_API_BASE_URL}?${params.toString()}`;
   
@@ -301,6 +323,8 @@ async function fetchStoreListInDongOpenApi(
     url: url.replace(apiKey, '***'),
     dongCode,
     pageNo,
+    numOfRows,
+    note: 'Filtering by dong code may require Swagger documentation confirmation',
   });
 
   try {
@@ -316,6 +340,14 @@ async function fetchStoreListInDongOpenApi(
     );
 
     if (!response.ok) {
+      const errorText = await response.text().catch(() => '');
+      logger.error('Open API request failed', {
+        dongCode,
+        pageNo,
+        status: response.status,
+        statusText: response.statusText,
+        errorText: errorText.substring(0, 500),
+      });
       throw new Error(`Open API request failed: ${response.status} ${response.statusText}`);
     }
 
@@ -325,25 +357,80 @@ async function fetchStoreListInDongOpenApi(
       `Open API JSON parsing timeout for dong ${dongCode}, page ${pageNo}`
     );
 
-    // Open API 응답 구조는 Swagger 문서를 확인하여 정확히 파악해야 합니다.
-    // 현재는 레거시 API와 유사한 구조를 가정합니다.
+    // Open API 응답 구조는 일반적으로 다음과 같습니다:
+    // { data: [...], currentCount: number, matchCount: number, page: number, perPage: number, totalCount: number }
+    // 또는 { response: { body: { items: [...] } } }
+    
     logger.info('Open API response received', {
       dongCode,
       pageNo,
       responseKeys: Object.keys(data),
-      responseSample: JSON.stringify(data).substring(0, 500),
+      hasData: !!data.data,
+      hasResponse: !!data.response,
+      dataType: Array.isArray(data) ? 'array' : typeof data,
+      responseSample: JSON.stringify(data).substring(0, 1000),
     });
 
     // 응답 구조가 다를 수 있으므로 유연하게 처리
     let items: any[] = [];
-    if (data.response?.body?.items) {
+    
+    // odcloud.kr 일반 구조: { data: [...] }
+    if (data.data) {
+      items = Array.isArray(data.data) ? data.data : [data.data];
+    }
+    // 레거시 구조: { response: { body: { items: [...] } } }
+    else if (data.response?.body?.items) {
       items = Array.isArray(data.response.body.items)
         ? data.response.body.items
         : [data.response.body.items];
-    } else if (Array.isArray(data)) {
+    }
+    // 직접 배열
+    else if (Array.isArray(data)) {
       items = data;
-    } else if (data.items) {
+    }
+    // items 필드
+    else if (data.items) {
       items = Array.isArray(data.items) ? data.items : [data.items];
+    }
+
+    // 행정동 코드로 필터링 (API에서 필터링되지 않은 경우)
+    if (items.length > 0 && dongCode) {
+      // 행정동 코드 필드명 확인 (다양한 필드명 시도)
+      const dongFieldNames = ['행정동코드', 'admCd', 'dongCode', '시군구코드', '시도시군구코드', 'bizesId', 'bizId'];
+      const firstItem = items[0] as any;
+      
+      // 행정동 코드 필드 찾기
+      let dongField: string | null = null;
+      for (const field of dongFieldNames) {
+        if (firstItem[field] !== undefined) {
+          dongField = field;
+          break;
+        }
+      }
+      
+      // 행정동 코드로 필터링
+      if (dongField) {
+        const originalCount = items.length;
+        items = items.filter((item: any) => {
+          const itemDongCode = String(item[dongField] || '');
+          return itemDongCode.startsWith(dongCode) || itemDongCode === dongCode;
+        });
+        
+        if (originalCount !== items.length) {
+          logger.info('Filtered items by dong code', {
+            dongCode,
+            dongField,
+            originalCount,
+            filteredCount: items.length,
+          });
+        }
+      } else {
+        logger.warn('Could not find dong code field in Open API response', {
+          dongCode,
+          firstItemKeys: Object.keys(firstItem),
+          note: 'Items may not be filtered by dong code',
+        });
+      }
     }
 
     logger.info('Open API returned stores', {
@@ -351,6 +438,7 @@ async function fetchStoreListInDongOpenApi(
       pageNo,
       itemsCount: items.length,
       firstStoreKeys: items.length > 0 ? Object.keys(items[0] || {}) : [],
+      hasSourceId: items.length > 0 ? !!(items[0]?.source_id || items[0]?.bizesId || items[0]?.bizId || items[0]?.id) : false,
     });
 
     return items;
