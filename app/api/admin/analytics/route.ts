@@ -59,57 +59,88 @@ export async function GET(request: NextRequest) {
         break;
     }
 
-    // 발행 성과 통계
-    const totalPublished = await db
-      .select({ count: count() })
-      .from(schema.bizMeta)
-      .where(isNotNull(schema.bizMeta.lastPublishedAt))
-      .get();
+    // 기본값 설정
+    let totalPublished = { count: 0 };
+    let thisWeekNew = { count: 0 };
+    let periodUpdated = { count: 0 };
+    let topPages: Array<{
+      bizId: string;
+      lastPublishedAt: number | Date | null;
+      bizPlace: {
+        name: string | null;
+        sido: string | null;
+        sigungu: string | null;
+        dong: string | null;
+        category: string | null;
+      };
+    }> = [];
+    let publishedStats: Array<{ date: string; count: number }> = [];
 
-    // 이번 주 신규 발행 (오늘부터 7일 전까지)
-    const weekAgo = new Date((todayStart - 7 * 86400) * 1000);
-    const thisWeekNew = await db
-      .select({ count: count() })
-      .from(schema.bizMeta)
-      .where(
-        and(
-          isNotNull(schema.bizMeta.lastPublishedAt),
-          gte(schema.bizMeta.lastPublishedAt, weekAgo)
+    // 각 쿼리를 개별적으로 try-catch로 처리
+    try {
+      totalPublished = (await db
+        .select({ count: count() })
+        .from(schema.bizMeta)
+        .where(isNotNull(schema.bizMeta.lastPublishedAt))
+        .get()) || { count: 0 };
+    } catch (error) {
+      console.error('Failed to fetch totalPublished:', error);
+    }
+
+    try {
+      const weekAgo = new Date((todayStart - 7 * 86400) * 1000);
+      thisWeekNew = (await db
+        .select({ count: count() })
+        .from(schema.bizMeta)
+        .where(
+          and(
+            isNotNull(schema.bizMeta.lastPublishedAt),
+            gte(schema.bizMeta.lastPublishedAt, weekAgo)
+          )
         )
-      )
-      .get();
+        .get()) || { count: 0 };
+    } catch (error) {
+      console.error('Failed to fetch thisWeekNew:', error);
+    }
 
-    // 선택한 기간 내 업데이트 (재발행)
-    const periodUpdated = await db
-      .select({ count: count() })
-      .from(schema.bizMeta)
-      .where(
-        and(
-          isNotNull(schema.bizMeta.lastPublishedAt),
-          gte(schema.bizMeta.lastPublishedAt, startDate)
+    try {
+      periodUpdated = (await db
+        .select({ count: count() })
+        .from(schema.bizMeta)
+        .where(
+          and(
+            isNotNull(schema.bizMeta.lastPublishedAt),
+            gte(schema.bizMeta.lastPublishedAt, startDate)
+          )
         )
-      )
-      .get();
+        .get()) || { count: 0 };
+    } catch (error) {
+      console.error('Failed to fetch periodUpdated:', error);
+    }
 
-    // 상위 페이지 성과 (최근 발행된 페이지 상위 10개)
-    const topPages = await db
-      .select({
-        bizId: schema.bizMeta.bizId,
-        lastPublishedAt: schema.bizMeta.lastPublishedAt,
-        bizPlace: {
-          name: schema.bizPlace.name,
-          sido: schema.bizPlace.sido,
-          sigungu: schema.bizPlace.sigungu,
-          dong: schema.bizPlace.dong,
-          category: schema.bizPlace.category,
-        },
-      })
-      .from(schema.bizMeta)
-      .innerJoin(schema.bizPlace, eq(schema.bizMeta.bizId, schema.bizPlace.id))
-      .where(isNotNull(schema.bizMeta.lastPublishedAt))
-      .orderBy(desc(schema.bizMeta.lastPublishedAt))
-      .limit(10)
-      .all();
+    try {
+      topPages = await db
+        .select({
+          bizId: schema.bizMeta.bizId,
+          lastPublishedAt: schema.bizMeta.lastPublishedAt,
+          bizPlace: {
+            name: schema.bizPlace.name,
+            sido: schema.bizPlace.sido,
+            sigungu: schema.bizPlace.sigungu,
+            dong: schema.bizPlace.dong,
+            category: schema.bizPlace.category,
+          },
+        })
+        .from(schema.bizMeta)
+        .innerJoin(schema.bizPlace, eq(schema.bizMeta.bizId, schema.bizPlace.id))
+        .where(isNotNull(schema.bizMeta.lastPublishedAt))
+        .orderBy(desc(schema.bizMeta.lastPublishedAt))
+        .limit(10)
+        .all();
+    } catch (error) {
+      console.error('Failed to fetch topPages:', error);
+      topPages = [];
+    }
 
     // 상위 페이지 포맷팅
     const formattedTopPages = topPages.map((page) => {
@@ -179,21 +210,26 @@ export async function GET(request: NextRequest) {
     }
 
     // 선택한 기간 내 발행 통계 (차트용)
-    const publishedStats = await db
-      .select({
-        date: sql<string>`DATE(${schema.bizMeta.lastPublishedAt}, 'unixepoch') as date`,
-        count: count(),
-      })
-      .from(schema.bizMeta)
-      .where(
-        and(
-          isNotNull(schema.bizMeta.lastPublishedAt),
-          gte(schema.bizMeta.lastPublishedAt, startDate)
+    try {
+      publishedStats = await db
+        .select({
+          date: sql<string>`DATE(${schema.bizMeta.lastPublishedAt}, 'unixepoch') as date`,
+          count: count(),
+        })
+        .from(schema.bizMeta)
+        .where(
+          and(
+            isNotNull(schema.bizMeta.lastPublishedAt),
+            gte(schema.bizMeta.lastPublishedAt, startDate)
+          )
         )
-      )
-      .groupBy(sql`DATE(${schema.bizMeta.lastPublishedAt}, 'unixepoch')`)
-      .orderBy(sql`DATE(${schema.bizMeta.lastPublishedAt}, 'unixepoch')`)
-      .all();
+        .groupBy(sql`DATE(${schema.bizMeta.lastPublishedAt}, 'unixepoch')`)
+        .orderBy(sql`DATE(${schema.bizMeta.lastPublishedAt}, 'unixepoch')`)
+        .all();
+    } catch (error) {
+      console.error('Failed to fetch publishedStats:', error);
+      publishedStats = [];
+    }
 
     return NextResponse.json({
       // 발행 성과
