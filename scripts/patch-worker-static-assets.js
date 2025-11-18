@@ -36,9 +36,20 @@ try {
     workerContent = workerContent.replace(
       pattern1,
       `$1// Handle static assets (_next/static/*) before middleware
+            // Pages ASSETS 바인딩은 .open-next/assets/를 루트로 사용하므로
+            // /_next/static/ 요청을 assets/_next/static/으로 매핑
             if (url.pathname.startsWith("/_next/static/")) {
                 if (env.ASSETS) {
-                    const assetResponse = await env.ASSETS.fetch(request);
+                    // ASSETS 바인딩은 assets/ 디렉토리를 루트로 사용
+                    const assetPath = url.pathname.startsWith("/assets/") 
+                        ? url.pathname 
+                        : "/assets" + url.pathname;
+                    const assetUrl = new URL(assetPath, url.origin);
+                    const assetRequest = new Request(assetUrl, {
+                        method: request.method,
+                        headers: request.headers,
+                    });
+                    const assetResponse = await env.ASSETS.fetch(assetRequest);
                     if (assetResponse.status !== 404) {
                         return assetResponse;
                     }
@@ -57,9 +68,20 @@ try {
     workerContent = workerContent.replace(
       pattern2,
       `$1// Handle static assets (_next/static/*) before middleware
+            // Pages ASSETS 바인딩은 .open-next/assets/를 루트로 사용하므로
+            // /_next/static/ 요청을 assets/_next/static/으로 매핑
             if (url.pathname.startsWith("/_next/static/")) {
                 if (env.ASSETS) {
-                    const assetResponse = await env.ASSETS.fetch(request);
+                    // ASSETS 바인딩은 assets/ 디렉토리를 루트로 사용
+                    const assetPath = url.pathname.startsWith("/assets/") 
+                        ? url.pathname 
+                        : "/assets" + url.pathname;
+                    const assetUrl = new URL(assetPath, url.origin);
+                    const assetRequest = new Request(assetUrl, {
+                        method: request.method,
+                        headers: request.headers,
+                    });
+                    const assetResponse = await env.ASSETS.fetch(assetRequest);
                     if (assetResponse.status !== 404) {
                         return assetResponse;
                     }
