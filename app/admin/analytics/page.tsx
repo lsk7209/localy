@@ -14,67 +14,70 @@ import {
   Paper,
   ToggleButton,
   ToggleButtonGroup,
+  CircularProgress,
+  Alert,
 } from '@mui/material';
 import { Grid } from '@mui/material';
-import { CheckCircle, Update } from '@mui/icons-material';
-import { useState, useCallback } from 'react';
+import { CheckCircle, Update, Error as ErrorIcon } from '@mui/icons-material';
+import { useState, useCallback, useEffect } from 'react';
 
-const timeRanges = ['오늘', '7일', '30일', '90일', '직접 선택'] as const;
+const timeRanges = ['오늘', '7일', '30일', '90일'] as const;
 
-const topPages = [
-  {
-    title: '강남구 1인 미용실 창업 비용 완벽 분석',
-    url: '/posts/gangnam-hair-salon-costs',
-    pageviews: 2492,
-    visitors: 1820,
-    duration: '3분 12초',
-    source: 'Google',
-  },
-  {
-    title: '홍대 카페 상권 트렌드 리포트',
-    url: '/reports/hongdae-cafe-trends',
-    pageviews: 1830,
-    visitors: 1512,
-    duration: '2분 45초',
-    source: 'Naver',
-  },
-  {
-    title: '종로구 음식점 평균 매출 데이터',
-    url: '/data/jongno-restaurant-sales',
-    pageviews: 1205,
-    visitors: 988,
-    duration: '4분 02초',
-    source: 'Direct',
-  },
-  {
-    title: '마포구 스터디카페 입지 분석',
-    url: '/analysis/mapo-study-cafe',
-    pageviews: 980,
-    visitors: 810,
-    duration: '2분 55초',
-    source: 'Google',
-  },
-  {
-    title: '2024년 공유오피스 시장 전망',
-    url: '/insight/2024-shared-office',
-    pageviews: 750,
-    visitors: 640,
-    duration: '3분 30초',
-    source: 'Brunch',
-  },
-];
-
-const indexNowLogs = [
-  { time: '08-23 14:02', status: 'success', engine: 'Google' },
-  { time: '08-23 13:55', status: 'success', engine: 'Naver' },
-  { time: '08-23 11:30', status: 'fail', engine: 'Bing' },
-];
+interface AnalyticsData {
+  publishStats: {
+    totalPublished: number;
+    thisWeekNew: number;
+    periodUpdated: number;
+  };
+  topPages: Array<{
+    title: string;
+    url: string;
+    pageviews: number;
+    visitors: number;
+    duration: string;
+    source: string;
+    publishedAt: string | null;
+  }>;
+  searchStatus: {
+    sitemapStatus: string;
+    lastIndexed: string | null;
+    indexNowLogs: Array<{ time: string; status: 'success' | 'fail'; engine: string }>;
+  };
+  chartData: Array<{ date: string; count: number }>;
+  range: string;
+  timestamp: string;
+}
 
 /**
  * Analytics 페이지 - 통계 센터
  */
 export default function AnalyticsPage() {
   const [selectedRange, setSelectedRange] = useState<(typeof timeRanges)[number]>('오늘');
+  const [data, setData] = useState<AnalyticsData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchAnalytics = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await fetch(`/api/admin/analytics?range=${selectedRange}`);
+      if (!response.ok) {
+        throw new Error('Analytics 데이터를 불러올 수 없습니다');
+      }
+      const analyticsData = await response.json();
+      setData(analyticsData);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '알 수 없는 오류가 발생했습니다');
+      console.error('Failed to fetch analytics:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedRange]);
+
+  useEffect(() => {
+    fetchAnalytics();
+  }, [fetchAnalytics]);
 
   const handleRangeChange = useCallback(
     (_: React.MouseEvent<HTMLElement>, newRange: (typeof timeRanges)[number] | null) => {
@@ -152,108 +155,16 @@ export default function AnalyticsPage() {
       </Box>
 
       <Container maxWidth="xl" sx={{ py: { xs: 2, sm: 3, lg: 4 } }}>
-        {/* 방문자 통계 */}
-        <Box sx={{ mb: 4 }}>
-          <Typography variant="h2" sx={{ mb: 3, fontSize: '1.375rem', fontWeight: 700, px: 2 }}>
-            방문자 통계
-          </Typography>
-          <Grid container spacing={3}>
-            {/* @ts-ignore */}
-            <Grid item xs={12} lg={8}>
-              <Card sx={{ height: '100%' }}>
-                <CardContent>
-                  <Typography variant="body1" sx={{ mb: 1, fontWeight: 500 }}>
-                    방문자 및 페이지뷰
-                  </Typography>
-                  <Typography variant="h3" sx={{ fontSize: '2rem', fontWeight: 700, mb: 1 }}>
-                    1,482
-                  </Typography>
-                  <Box sx={{ display: 'flex', gap: 1, mb: 3 }}>
-                    <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                      지난 30일
-                    </Typography>
-                    <Typography variant="body2" sx={{ color: 'success.main', fontWeight: 500 }}>
-                      +12.5%
-                    </Typography>
-                  </Box>
-                  <Box sx={{ height: 180, bgcolor: 'neutral.100', borderRadius: 2 }}>
-                    {/* 차트 영역 */}
-                  </Box>
-                </CardContent>
-              </Card>
-            </Grid>
-            {/* @ts-ignore */}
-            <Grid item xs={12} lg={4}>
-              <Grid container spacing={3}>
-                {/* @ts-ignore */}
-                <Grid item xs={12}>
-                  <Card>
-                    <CardContent>
-                      <Typography variant="body1" sx={{ mb: 2, fontWeight: 500 }}>
-                        기기 비율
-                      </Typography>
-                      <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
-                        <Box
-                          sx={{
-                            width: 128,
-                            height: 128,
-                            borderRadius: '50%',
-                            bgcolor: 'neutral.200',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            position: 'relative',
-                          }}
-                        >
-                          <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                            72%
-                          </Typography>
-                        </Box>
-                      </Box>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-around' }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'primary.main' }} />
-                          <Typography variant="body2">모바일</Typography>
-                        </Box>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'neutral.200' }} />
-                          <Typography variant="body2">데스크탑</Typography>
-                        </Box>
-                      </Box>
-                    </CardContent>
-                  </Card>
-                </Grid>
-                {/* @ts-ignore */}
-                <Grid item xs={12}>
-                  <Card>
-                    <CardContent>
-                      <Typography variant="body1" sx={{ mb: 2, fontWeight: 500 }}>
-                        브라우저 비율
-                      </Typography>
-                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                        {[
-                          { name: 'Chrome', percent: 65 },
-                          { name: 'Safari', percent: 20 },
-                          { name: 'Edge', percent: 10 },
-                          { name: '기타', percent: 5 },
-                        ].map((item) => (
-                          <Box key={item.name} sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-                              {item.name}
-                            </Typography>
-                            <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                              {item.percent}%
-                            </Typography>
-                          </Box>
-                        ))}
-                      </Box>
-                    </CardContent>
-                  </Card>
-                </Grid>
-              </Grid>
-            </Grid>
-          </Grid>
-        </Box>
+        {loading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
+            <CircularProgress />
+          </Box>
+        ) : error ? (
+          <Alert severity="error" sx={{ mb: 3 }}>
+            {error}
+          </Alert>
+        ) : data ? (
+          <>
 
         {/* 상위 페이지 성과 */}
         <Box sx={{ mb: 4 }}>
@@ -282,22 +193,36 @@ export default function AnalyticsPage() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {topPages.map((page) => (
-                  <TableRow key={page.url}>
-                    <TableCell>
-                      <Typography variant="body2" sx={{ fontWeight: 500, mb: 0.5 }}>
-                        {page.title}
-                      </Typography>
-                      <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                        {page.url}
+                {data.topPages.length > 0 ? (
+                  data.topPages.map((page, index) => (
+                    <TableRow key={page.url || index}>
+                      <TableCell>
+                        <Typography variant="body2" sx={{ fontWeight: 500, mb: 0.5 }}>
+                          {page.title}
+                        </Typography>
+                        <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                          {page.url}
+                        </Typography>
+                      </TableCell>
+                      <TableCell align="right">
+                        {page.pageviews > 0 ? page.pageviews.toLocaleString() : '-'}
+                      </TableCell>
+                      <TableCell align="right">
+                        {page.visitors > 0 ? page.visitors.toLocaleString() : '-'}
+                      </TableCell>
+                      <TableCell align="right">{page.duration}</TableCell>
+                      <TableCell>{page.source}</TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={5} align="center" sx={{ py: 4 }}>
+                      <Typography variant="body2" color="text.secondary">
+                        발행된 페이지가 없습니다
                       </Typography>
                     </TableCell>
-                    <TableCell align="right">{page.pageviews.toLocaleString()}</TableCell>
-                    <TableCell align="right">{page.visitors.toLocaleString()}</TableCell>
-                    <TableCell align="right">{page.duration}</TableCell>
-                    <TableCell>{page.source}</TableCell>
                   </TableRow>
-                ))}
+                )}
               </TableBody>
             </Table>
           </Paper>
@@ -319,7 +244,7 @@ export default function AnalyticsPage() {
                       총 발행 수
                     </Typography>
                     <Typography variant="h4" sx={{ fontWeight: 700 }}>
-                      1,204
+                      {data.publishStats.totalPublished.toLocaleString()}
                     </Typography>
                   </Grid>
                   {/* @ts-ignore */}
@@ -328,7 +253,7 @@ export default function AnalyticsPage() {
                       이번 주 신규
                     </Typography>
                     <Typography variant="h4" sx={{ fontWeight: 700 }}>
-                      32
+                      {data.publishStats.thisWeekNew.toLocaleString()}
                     </Typography>
                   </Grid>
                   {/* @ts-ignore */}
@@ -337,12 +262,50 @@ export default function AnalyticsPage() {
                       업데이트
                     </Typography>
                     <Typography variant="h4" sx={{ fontWeight: 700 }}>
-                      15
+                      {data.publishStats.periodUpdated.toLocaleString()}
                     </Typography>
                   </Grid>
                 </Grid>
-                <Box sx={{ height: 160, bgcolor: 'neutral.100', borderRadius: 2 }}>
-                  {/* 차트 영역 */}
+                <Box sx={{ height: 160, bgcolor: 'neutral.100', borderRadius: 2, p: 2 }}>
+                  {data.chartData.length > 0 ? (
+                    <Box sx={{ display: 'flex', alignItems: 'flex-end', gap: 1, height: '100%' }}>
+                      {data.chartData.map((item, index) => (
+                        <Box
+                          key={index}
+                          sx={{
+                            flex: 1,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'flex-end',
+                            height: '100%',
+                          }}
+                        >
+                          <Box
+                            sx={{
+                              width: '100%',
+                              height: `${Math.max((item.count / Math.max(...data.chartData.map(d => d.count))) * 100, 10)}%`,
+                              bgcolor: 'primary.main',
+                              borderRadius: 1,
+                              mb: 1,
+                            }}
+                          />
+                          <Typography variant="caption" sx={{ fontSize: '0.65rem', color: 'text.secondary' }}>
+                            {item.date.split('-').slice(1).join('/')}
+                          </Typography>
+                          <Typography variant="caption" sx={{ fontSize: '0.7rem', fontWeight: 500 }}>
+                            {item.count}
+                          </Typography>
+                        </Box>
+                      ))}
+                    </Box>
+                  ) : (
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                      <Typography variant="body2" color="text.secondary">
+                        데이터가 없습니다
+                      </Typography>
+                    </Box>
+                  )}
                 </Box>
               </CardContent>
             </Card>
@@ -361,10 +324,21 @@ export default function AnalyticsPage() {
                       Sitemap
                     </Typography>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <CheckCircle sx={{ color: 'success.main' }} />
-                      <Typography variant="h6" sx={{ fontWeight: 700, color: 'success.main' }}>
-                        정상
-                      </Typography>
+                      {data.searchStatus.sitemapStatus === 'ok' || data.searchStatus.sitemapStatus === 'success' ? (
+                        <>
+                          <CheckCircle sx={{ color: 'success.main' }} />
+                          <Typography variant="h6" sx={{ fontWeight: 700, color: 'success.main' }}>
+                            정상
+                          </Typography>
+                        </>
+                      ) : (
+                        <>
+                          <ErrorIcon sx={{ color: 'error.main' }} />
+                          <Typography variant="h6" sx={{ fontWeight: 700, color: 'error.main' }}>
+                            {data.searchStatus.sitemapStatus === 'unknown' ? '알 수 없음' : '오류'}
+                          </Typography>
+                        </>
+                      )}
                     </Box>
                   </Grid>
                   {/* @ts-ignore */}
@@ -375,7 +349,7 @@ export default function AnalyticsPage() {
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                       <Update />
                       <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                        3시간 전
+                        {data.searchStatus.lastIndexed || '없음'}
                       </Typography>
                     </Box>
                   </Grid>
@@ -399,28 +373,38 @@ export default function AnalyticsPage() {
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {indexNowLogs.map((log, index) => (
-                        <TableRow key={index}>
-                          <TableCell>{log.time}</TableCell>
-                          <TableCell>
-                            <Box
-                              sx={{
-                                display: 'inline-block',
-                                px: 1,
-                                py: 0.5,
-                                borderRadius: 2,
-                                bgcolor: log.status === 'success' ? 'success.light' : 'error.light',
-                                color: log.status === 'success' ? 'success.dark' : 'error.dark',
-                                fontSize: '0.75rem',
-                                fontWeight: 500,
-                              }}
-                            >
-                              {log.status === 'success' ? '성공' : '실패'}
-                            </Box>
+                      {data.searchStatus.indexNowLogs.length > 0 ? (
+                        data.searchStatus.indexNowLogs.map((log, index) => (
+                          <TableRow key={index}>
+                            <TableCell>{log.time}</TableCell>
+                            <TableCell>
+                              <Box
+                                sx={{
+                                  display: 'inline-block',
+                                  px: 1,
+                                  py: 0.5,
+                                  borderRadius: 2,
+                                  bgcolor: log.status === 'success' ? 'success.light' : 'error.light',
+                                  color: log.status === 'success' ? 'success.dark' : 'error.dark',
+                                  fontSize: '0.75rem',
+                                  fontWeight: 500,
+                                }}
+                              >
+                                {log.status === 'success' ? '성공' : '실패'}
+                              </Box>
+                            </TableCell>
+                            <TableCell>{log.engine}</TableCell>
+                          </TableRow>
+                        ))
+                      ) : (
+                        <TableRow>
+                          <TableCell colSpan={3} align="center" sx={{ py: 2 }}>
+                            <Typography variant="body2" color="text.secondary">
+                              IndexNow 로그가 없습니다
+                            </Typography>
                           </TableCell>
-                          <TableCell>{log.engine}</TableCell>
                         </TableRow>
-                      ))}
+                      )}
                     </TableBody>
                   </Table>
                 </Box>
@@ -428,6 +412,8 @@ export default function AnalyticsPage() {
             </Card>
           </Grid>
         </Grid>
+          </>
+        ) : null}
       </Container>
     </Box>
   );
