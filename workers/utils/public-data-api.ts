@@ -187,13 +187,19 @@ export async function fetchStoreListInDong(
 
     // API 응답 로깅
     if (items.length > 0) {
+      // 첫 번째 store의 구조 확인
+      const firstStore = items[0] as any;
+      const firstStoreKeys = Object.keys(firstStore || {});
+      
       logger.info('API returned stores', {
         dongCode,
         pageNo,
         itemsCount: items.length,
         totalCount: data.response.body.totalCount,
         numOfRows: data.response.body.numOfRows,
-        firstStoreSourceId: items[0]?.bizesId || items[0]?.bizId || 'unknown',
+        firstStoreKeys: firstStoreKeys.slice(0, 10), // 처음 10개 키만
+        firstStoreSample: JSON.stringify(firstStore).substring(0, 300), // 처음 300자만
+        hasSourceId: !!(firstStore?.source_id || firstStore?.bizesId || firstStore?.bizId || firstStore?.id),
       });
     } else {
       logger.info('API returned empty items array', {

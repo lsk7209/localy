@@ -21,7 +21,24 @@ export function prepareStoreForInsert(store: PublicDataStore): {
   lng: number | null;
   rawJson: string;
 } {
-  const sourceId = store.source_id || '';
+  // sourceId 추출 (다양한 필드명 시도)
+  let sourceId = store.source_id || 
+                 (store as any).bizesId || 
+                 (store as any).bizId || 
+                 (store as any).id || 
+                 '';
+  
+  // sourceId가 없으면 에러 (primary key이므로 필수)
+  if (!sourceId || sourceId.trim() === '') {
+    // 대체 ID 생성 (임시)
+    const fallbackId = `temp_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    console.warn('Store missing source_id, using fallback ID', {
+      store: JSON.stringify(store).substring(0, 200),
+      fallbackId,
+    });
+    sourceId = fallbackId;
+  }
+  
   const nameRaw = store.name ? sanitizeString(store.name) : null;
   const addrRaw = store.address ? sanitizeString(store.address) : null;
   const categoryRaw = store.category ? sanitizeString(store.category) : null;

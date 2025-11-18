@@ -133,6 +133,16 @@ export async function handleInitialFetch(
           const insertValues = stores.map((store) => {
             const prepared = prepareStoreForInsert(store);
             
+            // sourceId 검증
+            if (!prepared.sourceId || prepared.sourceId.trim() === '') {
+              logger.error('Store missing sourceId after preparation', {
+                dongCode,
+                pageNo,
+                store: JSON.stringify(store).substring(0, 200),
+              });
+              return null; // null 반환하여 필터링
+            }
+            
             // 좌표 검증 실패 시 경고
             if (store.lat !== undefined && store.lng !== undefined && !prepared.lat) {
               logger.warn('Invalid coordinates for store', {
@@ -143,6 +153,14 @@ export async function handleInitialFetch(
             }
             
             return prepared;
+          }).filter((item): item is NonNullable<typeof item> => item !== null); // null 필터링
+
+          logger.info('Prepared stores for insert', {
+            dongCode,
+            pageNo,
+            originalCount: stores.length,
+            preparedCount: insertValues.length,
+            filteredCount: stores.length - insertValues.length,
           });
 
           if (insertValues.length > 0) {
@@ -152,10 +170,18 @@ export async function handleInitialFetch(
               try {
                 await db.insert(rawStore).values(chunk).onConflictDoNothing();
                 totalStoresInserted += chunk.length;
+                logger.info('Batch insert successful', {
+                  dongCode,
+                  pageNo,
+                  chunkSize: chunk.length,
+                  totalInserted: totalStoresInserted,
+                });
               } catch (error) {
                 logger.warn('Batch insert failed for dong, falling back to individual upserts', {
                   dongCode,
+                  pageNo,
                   error: error instanceof Error ? error.message : String(error),
+                  errorStack: error instanceof Error ? error.stack : undefined,
                   chunkSize: chunk.length,
                 });
                 // 개별 INSERT로 폴백
@@ -166,12 +192,26 @@ export async function handleInitialFetch(
                     logger.error('Failed to upsert store', {
                       sourceId,
                       dongCode,
+                      pageNo,
                     }, error);
                   }
                 );
                 totalStoresInserted += successCount;
+                logger.info('Individual upserts completed', {
+                  dongCode,
+                  pageNo,
+                  successCount,
+                  totalInserted: totalStoresInserted,
+                });
               }
             }
+          } else {
+            logger.warn('No valid stores to insert after preparation', {
+              dongCode,
+              pageNo,
+              originalStoresCount: stores.length,
+            });
+          }
           }
           
           cpuTimer.checkpoint(`dong-${dongCode}-inserted`);
