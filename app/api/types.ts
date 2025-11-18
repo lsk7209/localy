@@ -57,9 +57,8 @@ export function getCloudflareEnv(): CloudflareEnv {
   
   // 2. OpenNext가 AsyncLocalStorage를 통해 저장한 컨텍스트 접근 (우선순위 2)
   try {
-    // @ts-expect-error: OpenNext의 심볼은 런타임에만 사용 가능
     const cloudflareContextSymbol = Symbol.for('__cloudflare-context__');
-    // @ts-expect-error: globalThis에 동적으로 추가됨
+    // @ts-ignore: globalThis에 동적으로 추가됨
     const context = globalThis[cloudflareContextSymbol];
     if (context?.env) {
       return context.env as CloudflareEnv;
