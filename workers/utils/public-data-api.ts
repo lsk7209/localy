@@ -139,16 +139,77 @@ export async function fetchStoreListInDong(
       `JSON parsing timeout for dong ${dongCode}, page ${pageNo}`
     );
 
-    if (!data.response?.body?.items) {
-      logger.warn('Unexpected API response structure', {
-        data,
+    // API 응답 구조 확인 및 상세 로깅
+    logger.info('API response received', {
+      dongCode,
+      pageNo,
+      hasResponse: !!data.response,
+      hasBody: !!data.response?.body,
+      hasItems: !!data.response?.body?.items,
+      totalCount: data.response?.body?.totalCount,
+      numOfRows: data.response?.body?.numOfRows,
+    });
+
+    if (!data.response) {
+      logger.error('API response missing response field', {
+        dongCode,
+        pageNo,
+        responseStatus: response.status,
+        responseBody: JSON.stringify(data).substring(0, 1000), // 처음 1000자만 로깅
       });
       return [];
     }
 
-    return Array.isArray(data.response.body.items)
+    if (!data.response.body) {
+      logger.error('API response missing body field', {
+        dongCode,
+        pageNo,
+        response: JSON.stringify(data.response).substring(0, 1000),
+      });
+      return [];
+    }
+
+    // items가 없거나 빈 배열인 경우 로깅
+    if (!data.response.body.items) {
+      logger.warn('API response missing items field', {
+        dongCode,
+        pageNo,
+        body: JSON.stringify(data.response.body).substring(0, 1000),
+        totalCount: data.response.body.totalCount,
+        numOfRows: data.response.body.numOfRows,
+      });
+      return [];
+    }
+
+    const items = Array.isArray(data.response.body.items)
       ? data.response.body.items
       : [data.response.body.items];
+
+    // API 응답 로깅
+    if (items.length > 0) {
+      logger.info('API returned stores', {
+        dongCode,
+        pageNo,
+        itemsCount: items.length,
+        totalCount: data.response.body.totalCount,
+        numOfRows: data.response.body.numOfRows,
+        firstStoreSourceId: items[0]?.bizesId || items[0]?.bizId || 'unknown',
+      });
+    } else {
+      logger.info('API returned empty items array', {
+        dongCode,
+        pageNo,
+        totalCount: data.response.body.totalCount,
+        numOfRows: data.response.body.numOfRows,
+        possibleReasons: [
+          'No stores in this dong',
+          'API key may be invalid',
+          'API endpoint may have changed',
+        ],
+      });
+    }
+
+    return items;
   } catch (error) {
     logger.error('Failed to fetch store list in dong', {
       dongCode,
