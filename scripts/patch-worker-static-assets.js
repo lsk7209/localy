@@ -10,11 +10,11 @@
 const fs = require('fs');
 const path = require('path');
 
-const workerPath = path.join(process.cwd(), '.open-next', '_worker.js');
+const workerPath = path.join(process.cwd(), '.open-next', 'assets', '_worker.js');
 
 try {
   if (!fs.existsSync(workerPath)) {
-    console.log('⚠️  .open-next/_worker.js를 찾을 수 없습니다.');
+    console.log('⚠️  .open-next/assets/_worker.js를 찾을 수 없습니다.');
     console.log('   fix-pages-worker.js가 먼저 실행되었는지 확인하세요.');
     process.exit(0);
   }

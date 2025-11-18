@@ -12,8 +12,9 @@ const path = require('path');
 
 const workerPath = path.join(process.cwd(), '.open-next', 'worker.js');
 // Cloudflare Pages는 pages_build_output_dir 루트에 _worker.js를 찾습니다
-// worker.js는 .open-next/ 기준 상대 경로를 사용하므로 .open-next/ 루트에 복사해야 합니다
-const pagesWorkerPath = path.join(process.cwd(), '.open-next', '_worker.js');
+// pages_build_output_dir = ".open-next/assets"이므로 _worker.js를 assets 디렉토리에 복사해야 합니다
+// worker.js는 .open-next/ 기준 상대 경로를 사용하므로 상대 경로를 조정해야 합니다
+const pagesWorkerPath = path.join(process.cwd(), '.open-next', 'assets', '_worker.js');
 
 try {
   // worker.js가 존재하는지 확인

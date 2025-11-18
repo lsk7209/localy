@@ -6,8 +6,9 @@ compatibility_flags = ["nodejs_compat"]
 # Cloudflare Pages 배포 설정 (GitHub 자동 배포용)
 # Pages는 main 필드와 pages_build_output_dir를 동시에 사용할 수 없습니다
 # Pages 배포를 위해서는 pages_build_output_dir만 사용해야 합니다
-# worker.js는 .open-next/ 기준 상대 경로를 사용하므로 .open-next를 출력 디렉토리로 설정
-pages_build_output_dir = ".open-next"
+# 정적 파일은 .open-next/assets/에 있으므로 assets 디렉토리를 출력 디렉토리로 설정
+# _worker.js는 .open-next/assets/_worker.js에 복사되어야 합니다
+pages_build_output_dir = ".open-next/assets"
 
 # Assets 설정 (Pages에서 정적 파일 제공)
 # Pages는 자동으로 .open-next/assets 디렉토리를 인식하고 ASSETS 바인딩을 생성합니다
