@@ -60,7 +60,6 @@ export default function SearchPage() {
           
           <TextField
             fullWidth
-            maxWidth="600px"
             placeholder="상가명, 카테고리, 주소로 검색하세요"
             value={searchQuery}
             onChange={handleSearchChange}
