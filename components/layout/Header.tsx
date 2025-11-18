@@ -87,6 +87,19 @@ export default memo(function Header({ title = 'LOCARRY' }: { title?: string }) {
             >
               검색
             </Link>
+            <Link
+              href="/category"
+              sx={{
+                color: 'text.secondary',
+                fontWeight: 500,
+                textDecoration: 'none',
+                '&:hover': {
+                  color: 'text.primary',
+                },
+              }}
+            >
+              업종
+            </Link>
           </Box>
         </Toolbar>
       </Container>
