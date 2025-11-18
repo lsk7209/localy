@@ -418,7 +418,8 @@ export default function FetchManagementPage() {
                     마지막 업데이트: {lastUpdate.toLocaleString('ko-KR')}
                   </Typography>
                 </Paper>
-              </Grid>
+                </Grid>
+              </>
             )}
           </Grid>
         ) : null}
