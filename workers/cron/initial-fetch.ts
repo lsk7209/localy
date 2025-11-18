@@ -178,38 +178,54 @@ export async function handleInitialFetch(
 
             // Cloudflare D1 배치 INSERT 제한 고려하여 청크로 분할
             const chunks = chunkArray(insertValues, D1_BATCH_LIMITS.MAX_INSERT_ROWS);
+            let chunkIndex = 0;
+            
             for (const chunk of chunks) {
+              chunkIndex++;
+              const isLastChunk = chunkIndex === chunks.length;
+              
               try {
                 // INSERT 시도
                 await db.insert(rawStore).values(chunk).onConflictDoNothing();
                 
-                // INSERT 후 실제 저장된 개수 확인
-                let afterCount = beforeCount;
-                try {
-                  const afterResult = await db.select({ count: sql<number>`COUNT(*)` }).from(rawStore).get();
-                  afterCount = afterResult?.count || 0;
-                } catch (countError) {
-                  logger.warn('Failed to get after count', {
-                    error: countError instanceof Error ? countError.message : String(countError),
-                  });
-                }
+                // 마지막 청크이거나 일정 간격으로만 카운트 확인 (성능 최적화)
+                // 모든 청크마다 카운트하면 성능 저하가 발생할 수 있음
+                let actuallyInserted = chunk.length; // 기본값: 모두 저장된 것으로 가정
                 
-                const actuallyInserted = afterCount - beforeCount;
-                beforeCount = afterCount; // 다음 청크를 위한 카운트 업데이트
+                if (isLastChunk || chunkIndex % 5 === 0) {
+                  // 마지막 청크이거나 5개 청크마다 실제 카운트 확인
+                  let afterCount = beforeCount;
+                  try {
+                    const afterResult = await db.select({ count: sql<number>`COUNT(*)` }).from(rawStore).get();
+                    afterCount = afterResult?.count || 0;
+                    actuallyInserted = afterCount - beforeCount;
+                    beforeCount = afterCount; // 다음 확인을 위한 카운트 업데이트
+                  } catch (countError) {
+                    logger.warn('Failed to get after count', {
+                      error: countError instanceof Error ? countError.message : String(countError),
+                    });
+                    // 카운트 실패 시 기본값 사용 (chunk.length)
+                  }
+                } else {
+                  // 중간 청크는 기본값 사용 (성능 최적화)
+                  beforeCount += chunk.length; // 추정치 업데이트
+                }
                 
                 totalStoresInserted += actuallyInserted;
                 
                 logger.info('Batch insert completed', {
                   dongCode,
                   pageNo,
+                  chunkIndex,
+                  totalChunks: chunks.length,
                   chunkSize: chunk.length,
                   actuallyInserted,
-                  beforeCount: beforeCount - actuallyInserted,
-                  afterCount,
                   totalInserted: totalStoresInserted,
-                  note: actuallyInserted < chunk.length 
-                    ? `${chunk.length - actuallyInserted} items were duplicates (onConflictDoNothing)`
-                    : 'All items inserted successfully',
+                  note: isLastChunk || chunkIndex % 5 === 0
+                    ? (actuallyInserted < chunk.length 
+                        ? `${chunk.length - actuallyInserted} items were duplicates (onConflictDoNothing)`
+                        : 'All items inserted successfully')
+                    : 'Count verified periodically (performance optimization)',
                 });
               } catch (error) {
                 logger.warn('Batch insert failed for dong, falling back to individual upserts', {
