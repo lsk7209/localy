@@ -126,18 +126,21 @@ export async function POST(request: NextRequest) {
     try {
       if (type === 'dong') {
         // 행정동별 수집
+        // dongCode는 이미 검증되었으므로 string으로 단언 가능
+        const validatedDongCode = dongCode as string;
+        
         logger.info('Manual fetch by dong code', {
-          dongCode,
-          maxPages,
+          dongCode: validatedDongCode,
+          maxPages: validatedMaxPages,
         });
 
         let pageNo = 1;
         let hasMore = true;
 
-        while (hasMore && pageNo <= maxPages) {
+        while (hasMore && pageNo <= validatedMaxPages) {
           try {
             const stores = await withTimeout(
-              fetchStoreListInDong(dongCode, publicDataApiKey, pageNo),
+              fetchStoreListInDong(validatedDongCode, publicDataApiKey, pageNo),
               20000,
               `API timeout for dong ${dongCode}, page ${pageNo}`
             );
