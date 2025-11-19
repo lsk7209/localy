@@ -6,15 +6,15 @@ import { checkAdminAPIRateLimit, createRateLimitResponse } from '@/workers/utils
 import { getCloudflareEnv } from '../../types';
 
 /**
- * Analytics ?곗씠??議고쉶 API
+ * Analytics ?怨쀬뵠??鈺곌퀬??API
  * 
- * 諛쒗뻾 ?깃낵, ?곸쐞 ?섏씠吏, 寃???щ·留??곹깭 ?깆쓣 諛섑솚?⑸땲??
+ * 獄쏆뮉六??源껊궢, ?怨몄맄 ??륁뵠筌왖, 野꺜????쨌筌??怨밴묶 ?源놁뱽 獄쏆꼹???몃빍??
  */
 export async function GET(request: NextRequest) {
   try {
     const env = getCloudflareEnv();
     
-    // Rate Limit 泥댄겕 (RATE_LIMIT KV媛 ?놁뼱???숈옉?섎룄濡?try-catch)
+    // Rate Limit 筌ｋ똾寃?(RATE_LIMIT KV揶쎛 ??곷선????덉삂??롫즲嚥?try-catch)
     let rateLimitResult;
     try {
       rateLimitResult = await checkAdminAPIRateLimit(env, request);
@@ -34,12 +34,11 @@ export async function GET(request: NextRequest) {
 
     const db = drizzle(env.DB, { schema });
     const { searchParams } = new URL(request.url);
-    const range = searchParams.get('range') || '?ㅻ뒛';
+    const range = searchParams.get('range') || '??삳뮎';
 
-    // ?좎쭨 踰붿쐞 怨꾩궛
-    const now = Date.now();
+    // ?醫롮? 甕곕뗄???④쑴沅?    const now = Date.now();
     const today = Math.floor(now / 1000);
-    const todayStart = today - (today % 86400); // ?ㅻ뒛 00:00:00
+    const todayStart = today - (today % 86400); // ??삳뮎 00:00:00
     const todayStartDate = new Date(todayStart * 1000);
     
     let startDate: Date;
@@ -53,13 +52,13 @@ export async function GET(request: NextRequest) {
       case '90??:
         startDate = new Date((todayStart - 90 * 86400) * 1000);
         break;
-      case '?ㅻ뒛':
+      case '??삳뮎':
       default:
         startDate = todayStartDate;
         break;
     }
 
-    // 湲곕낯媛??ㅼ젙
+    // 疫꿸퀡??첎???쇱젟
     let totalPublished = { count: 0 };
     let thisWeekNew = { count: 0 };
     let periodUpdated = { count: 0 };
@@ -76,8 +75,7 @@ export async function GET(request: NextRequest) {
     }> = [];
     let publishedStats: Array<{ date: string; count: number }> = [];
 
-    // 媛?荑쇰━瑜?媛쒕퀎?곸쑝濡?try-catch濡?泥섎━
-    try {
+    // 揶??묒눖?곭몴?揶쏆뮆??怨몄몵嚥?try-catch嚥?筌ｌ꼶??    try {
       totalPublished = (await db
         .select({ count: count() })
         .from(schema.bizMeta)
@@ -142,7 +140,7 @@ export async function GET(request: NextRequest) {
       topPages = [];
     }
 
-    // ?곸쐞 ?섏씠吏 ?щ㎎??
+    // ?怨몄맄 ??륁뵠筌왖 ?????
     const formattedTopPages = topPages.map((page) => {
       const slug = `${page.bizPlace.sido}-${page.bizPlace.sigungu}-${page.bizPlace.dong}-${page.bizPlace.category}`.toLowerCase();
       const url = `/shop/${slug}`;
@@ -153,34 +151,34 @@ export async function GET(request: NextRequest) {
       return {
         title,
         url,
-        pageviews: 0, // 異뷀썑 議고쉶??異붿쟻 ?쒖뒪??援ы쁽 ???낅뜲?댄듃
-        visitors: 0, // 異뷀썑 諛⑸Ц??異붿쟻 ?쒖뒪??援ы쁽 ???낅뜲?댄듃
-        duration: '0遺?, // 異뷀썑 泥대쪟?쒓컙 異붿쟻 ?쒖뒪??援ы쁽 ???낅뜲?댄듃
-        source: 'Direct', // 異뷀썑 ?좎엯寃쎈줈 異붿쟻 ?쒖뒪??援ы쁽 ???낅뜲?댄듃
+        pageviews: 0, // ?곕???鈺곌퀬????곕뗄????뽯뮞???닌뗭겱 ????낅쑓??꾨뱜
+        visitors: 0, // ?곕???獄쎻뫖揆???곕뗄????뽯뮞???닌뗭겱 ????낅쑓??꾨뱜
+        duration: '0??, // ?곕???筌ｋ?履??볦퍢 ?곕뗄????뽯뮞???닌뗭겱 ????낅쑓??꾨뱜
+        source: 'Direct', // ?곕????醫롮뿯野껋럥以??곕뗄????뽯뮞???닌뗭겱 ????낅쑓??꾨뱜
         publishedAt: page.lastPublishedAt
           ? new Date((page.lastPublishedAt as unknown as number) * 1000).toISOString()
           : null,
       };
     });
 
-    // 寃???щ·留??곹깭 (KV?먯꽌 媛?몄삤湲?
+    // 野꺜????쨌筌??怨밴묶 (KV?癒?퐣 揶쎛?紐꾩궎疫?
     let sitemapStatus = 'unknown';
     let lastIndexed = null;
     const indexNowLogs: Array<{ time: string; status: 'success' | 'fail'; engine: string }> = [];
 
     if (settingsKV) {
       try {
-        // Sitemap ?곹깭
+        // Sitemap ?怨밴묶
         const sitemapStatusValue = await settingsKV.get('sitemap:status');
         sitemapStatus = sitemapStatusValue || 'unknown';
 
-        // 理쒓렐 ?됱씤 ?쒓컙
+        // 筌ㅼ뮄????깆뵥 ??볦퍢
         const lastIndexedValue = await settingsKV.get('sitemap:last_indexed');
         if (lastIndexedValue) {
           lastIndexed = new Date(lastIndexedValue).toLocaleString('ko-KR');
         }
 
-        // IndexNow 濡쒓렇 (理쒓렐 10媛?
+        // IndexNow 嚥≪뮄??(筌ㅼ뮄??10揶?
         const indexNowList = await settingsKV.list({ prefix: 'indexnow:' });
         const indexNowEntries = await Promise.all(
           indexNowList.keys.slice(0, 10).map(async (key) => {
@@ -209,7 +207,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // ?좏깮??湲곌컙 ??諛쒗뻾 ?듦퀎 (李⑦듃??
+    // ?醫뤾문??疫꿸퀗而???獄쏆뮉六?????(筌△뫂???
     try {
       publishedStats = await db
         .select({
@@ -232,21 +230,21 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({
-      // 諛쒗뻾 ?깃낵
+      // 獄쏆뮉六??源껊궢
       publishStats: {
         totalPublished: totalPublished?.count || 0,
         thisWeekNew: thisWeekNew?.count || 0,
         periodUpdated: periodUpdated?.count || 0,
       },
-      // ?곸쐞 ?섏씠吏
+      // ?怨몄맄 ??륁뵠筌왖
       topPages: formattedTopPages,
-      // 寃???щ·留??곹깭
+      // 野꺜????쨌筌??怨밴묶
       searchStatus: {
         sitemapStatus,
         lastIndexed,
         indexNowLogs,
       },
-      // 李⑦듃 ?곗씠??
+      // 筌△뫂???怨쀬뵠??
       chartData: publishedStats.map((stat) => ({
         date: stat.date,
         count: stat.count,
