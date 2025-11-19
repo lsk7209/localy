@@ -9,7 +9,6 @@ import { count } from 'drizzle-orm';
 import { fetchStoreListInDong, fetchStoreListByDate, formatDateForApi } from '@/workers/utils/public-data-api';
 import { prepareStoreForInsert, upsertStoresIndividually } from '@/workers/utils/store-processing';
 import { chunkArray, D1_BATCH_LIMITS, withTimeout } from '@/workers/utils/performance';
-import { sql } from 'drizzle-orm';
 
 /**
  * 수동 수집 API
@@ -198,7 +197,7 @@ export async function POST(request: NextRequest) {
         // date는 이미 YYYYMMDD 형식이므로 formatDateForApi는 필요 없음
         // 하지만 formatDateForApi는 Date 객체나 문자열을 받을 수 있으므로 사용 가능
         let formattedDate: string;
-        if (date.length === 8 && /^\d{8}$/.test(date)) {
+        if (typeof date === 'string' && date.length === 8 && /^\d{8}$/.test(date)) {
           // 이미 YYYYMMDD 형식인 경우
           formattedDate = date;
         } else {
