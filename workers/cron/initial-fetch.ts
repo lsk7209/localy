@@ -98,7 +98,7 @@ export async function handleInitialFetch(
         await retryWithBackoff(
           async () => {
             // 첫 페이지 조회 (이전 실행에서 중단된 경우 해당 페이지부터 재개)
-            let pageNo = (isResumingDong && resumePage) ? resumePage : 1;
+            let pageNo: number = (isResumingDong && resumePage) ? resumePage : 1;
             let hasMore = true;
 
             while (hasMore) {

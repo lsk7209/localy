@@ -68,7 +68,7 @@ export async function checkRateLimit(
   try {
     // 현재 카운트 가져오기
     const current = await env.RATE_LIMIT.get(key);
-    const count = safeParseInt(current, 0, 0);
+    const count: number = safeParseInt(current, 0, 0) ?? 0;
 
     if (count >= config.maxRequests) {
       // 제한 초과
