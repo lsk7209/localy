@@ -673,7 +673,7 @@ export default function FetchManagementPage() {
               fullWidth
               inputProps={{
                 min: 1,
-                max: 100,
+                max: 10,
               }}
             />
           </Box>
