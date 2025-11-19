@@ -1,4 +1,4 @@
-port { NextResponse } from 'next/server';
+mport { NextResponse } from 'next/server';
 
 /**
  * OpenAPI 3.0 스펙 정의
