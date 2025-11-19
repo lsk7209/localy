@@ -17,7 +17,12 @@ export async function GET(request: NextRequest) {
   try {
     const env = getCloudflareEnv();
 
+    // DB 바인딩 확인
     if (!env?.DB) {
+      logger.warn('Database not available in categories API', {
+        hasEnv: !!env,
+        hasDB: !!env?.DB,
+      });
       return NextResponse.json(
         { error: 'Database not available' },
         { status: 503 }
@@ -137,12 +142,20 @@ export async function GET(request: NextRequest) {
         totalStores,
       });
     } catch (dbError) {
-      logger.error('Failed to fetch category statistics', {}, dbError instanceof Error ? dbError : new Error(String(dbError)));
+      const dbErrorObj = dbError instanceof Error ? dbError : new Error(String(dbError));
+      logger.error('Failed to fetch category statistics', {
+        error: dbErrorObj.message,
+        stack: dbErrorObj.stack,
+      }, dbErrorObj);
       throw dbError;
     }
   } catch (error) {
     const errorObj = error instanceof Error ? error : new Error(String(error));
-    logger.error('Failed to fetch categories', {}, errorObj);
+    logger.error('Failed to fetch categories', {
+      error: errorObj.message,
+      stack: errorObj.stack,
+      name: errorObj.name,
+    }, errorObj);
 
     return NextResponse.json(
       {
