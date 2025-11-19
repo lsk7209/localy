@@ -795,7 +795,7 @@ const openApiSpec = {
           },
           pendingPublish: {
             type: 'integer',
-            description: '발행 대기 수',
+            description: 'Pending publish count',
           },
           publishedLast7Days: {
             type: 'integer',
@@ -803,7 +803,7 @@ const openApiSpec = {
           },
           totalRegions: {
             type: 'integer',
-            description: '지역 수',
+            description: 'Total regions count',
           },
           lastUpdated: {
             type: 'string',
