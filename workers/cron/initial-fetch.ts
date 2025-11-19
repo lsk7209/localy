@@ -33,9 +33,9 @@ export async function handleInitialFetch(
     'initial_fetch_last_page',
   ]);
   
-  const nextDongIndex = safeParseInt(settings.get('next_dong_index'), 0, 0);
+  const nextDongIndex: number = safeParseInt(settings.get('next_dong_index'), 0, 0) ?? 0;
   const resumeDong = settings.get('initial_fetch_last_dong') || null;
-  const resumePage = safeParseInt(settings.get('initial_fetch_last_page'), null, 1);
+  const resumePage: number | null = safeParseInt(settings.get('initial_fetch_last_page'), null, 1);
 
   // 이전 실행에서 중단된 경우 로깅
   if (resumeDong || resumePage) {
