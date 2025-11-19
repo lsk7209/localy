@@ -153,7 +153,7 @@ export async function POST(request: NextRequest) {
                 const prepared = prepareStoreForInsert(store);
                 if (!prepared.sourceId || prepared.sourceId.trim() === '') {
                   logger.warn('Store missing sourceId', {
-                    dongCode,
+                    dongCode: validatedDongCode,
                     pageNo,
                     store: JSON.stringify(store).substring(0, 200),
                   });
@@ -199,7 +199,7 @@ export async function POST(request: NextRequest) {
             const errorMessage = pageError instanceof Error ? pageError.message : String(pageError);
             errors.push({ page: pageNo, error: errorMessage });
             logger.error('Failed to fetch page', {
-              dongCode,
+              dongCode: validatedDongCode,
               pageNo,
               error: errorMessage,
             });
@@ -209,15 +209,18 @@ export async function POST(request: NextRequest) {
         }
       } else if (type === 'date') {
         // 날짜별 증분 수집
+        // date는 이미 검증되었으므로 string으로 단언 가능
+        const validatedDate = date as string;
+        
         // date는 이미 YYYYMMDD 형식이므로 formatDateForApi는 필요 없음
         // 하지만 formatDateForApi는 Date 객체나 문자열을 받을 수 있으므로 사용 가능
         let formattedDate: string;
-        if (typeof date === 'string' && date.length === 8 && /^\d{8}$/.test(date)) {
+        if (validatedDate.length === 8 && /^\d{8}$/.test(validatedDate)) {
           // 이미 YYYYMMDD 형식인 경우
-          formattedDate = date;
+          formattedDate = validatedDate;
         } else {
           // 다른 형식인 경우 변환
-          formattedDate = formatDateForApi(date);
+          formattedDate = formatDateForApi(validatedDate);
         }
         logger.info('Manual fetch by date', {
           date: formattedDate,
@@ -336,13 +339,14 @@ export async function POST(request: NextRequest) {
         message: 'Manual fetch completed',
         data: {
           type,
-          dongCode: type === 'dong' ? dongCode : undefined,
-          date: type === 'date' ? date : undefined,
+          dongCode: type === 'dong' ? (dongCode as string) : undefined,
+          date: type === 'date' ? (date as string) : undefined,
           beforeCount: beforeCountValue,
           afterCount: afterCountValue,
           insertedCount: actualInserted, // 실제 DB 카운트 차이 사용
           estimatedInserted: totalInserted, // 추정값 (중복 제외 전)
           pagesProcessed,
+          maxPages: validatedMaxPages,
           errors: errors.length > 0 ? errors : undefined,
         },
         timestamp: new Date().toISOString(),
@@ -364,8 +368,8 @@ export async function POST(request: NextRequest) {
 
       logger.error('Manual fetch failed', {
         type,
-        dongCode: type === 'dong' ? dongCode : undefined,
-        date: type === 'date' ? date : undefined,
+        dongCode: type === 'dong' ? (dongCode as string) : undefined,
+        date: type === 'date' ? (date as string) : undefined,
         beforeCount: beforeCountValue,
         afterCount: afterCountValue,
       }, fetchError instanceof Error ? fetchError : new Error(String(fetchError)));
