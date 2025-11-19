@@ -3,6 +3,7 @@ import { getCloudflareEnv } from '../../types';
 import { handleIncrementalFetch } from '@/workers/cron/incremental-fetch';
 import { logger } from '@/workers/utils/logger';
 import type { Env } from '@/workers/types';
+import type { ExecutionContext } from '@cloudflare/workers-types';
 import { drizzle } from 'drizzle-orm/d1';
 import * as schema from '@/db/schema';
 import { count } from 'drizzle-orm';
@@ -40,7 +41,8 @@ export async function POST(request: NextRequest) {
     }
     
     // ExecutionContext 모의 객체 생성 (Cloudflare Workers 환경)
-    const ctx = {
+    // Pages에서는 실제 ExecutionContext가 없으므로 부분 구현
+    const ctx: ExecutionContext = {
       waitUntil: (promise: Promise<unknown>) => {
         // Cloudflare Pages에서는 waitUntil이 없으므로 무시
         promise.catch((error) => {
@@ -50,7 +52,7 @@ export async function POST(request: NextRequest) {
       passThroughOnException: () => {
         // Cloudflare Pages에서는 passThroughOnException이 없으므로 무시
       },
-    };
+    } as ExecutionContext;
     
     // 증분 수집 실행 전 데이터베이스 카운트 확인
     let beforeCountValue = 0;
@@ -75,7 +77,7 @@ export async function POST(request: NextRequest) {
     });
     
     try {
-      await handleIncrementalFetch(env as Env, ctx as any);
+      await handleIncrementalFetch(env as Env, ctx);
       
       // 수집 후 데이터베이스 카운트 확인 (약간의 지연 후)
       await new Promise(resolve => setTimeout(resolve, 2000));
@@ -167,9 +169,16 @@ export async function GET(request: NextRequest) {
       );
     }
     
-    // KV에서 진행 상황 읽기
-    const lastModDate = await env.SETTINGS.get('last_mod_date');
-    const lastPage = await env.SETTINGS.get('incremental_fetch_last_page');
+    // KV에서 진행 상황 읽기 (타입 가드로 안전하게 처리)
+    const settingsKV = env.SETTINGS;
+    if (!settingsKV) {
+      return NextResponse.json(
+        { error: 'Settings KV not available' },
+        { status: 503 }
+      );
+    }
+    const lastModDate = await settingsKV.get('last_mod_date');
+    const lastPage = await settingsKV.get('incremental_fetch_last_page');
     
     return NextResponse.json({
       status: 'ok',
