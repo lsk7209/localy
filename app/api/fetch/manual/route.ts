@@ -302,13 +302,17 @@ export async function POST(request: NextRequest) {
         });
       }
 
+      // 실제 저장된 개수는 DB 카운트 차이로 계산
+      const actualInserted = afterCountValue - beforeCountValue;
+      
       logger.info('Manual fetch completed', {
         type,
         dongCode: type === 'dong' ? dongCode : undefined,
         date: type === 'date' ? date : undefined,
         beforeCount: beforeCountValue,
         afterCount: afterCountValue,
-        insertedCount: totalInserted,
+        estimatedInserted: totalInserted,
+        actualInserted,
         pagesProcessed,
         errors: errors.length,
       });
@@ -322,7 +326,8 @@ export async function POST(request: NextRequest) {
           date: type === 'date' ? date : undefined,
           beforeCount: beforeCountValue,
           afterCount: afterCountValue,
-          insertedCount: totalInserted,
+          insertedCount: actualInserted, // 실제 DB 카운트 차이 사용
+          estimatedInserted: totalInserted, // 추정값 (중복 제외 전)
           pagesProcessed,
           errors: errors.length > 0 ? errors : undefined,
         },
