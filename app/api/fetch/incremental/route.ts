@@ -162,14 +162,6 @@ export async function GET(request: NextRequest) {
   try {
     const env = getCloudflareEnv();
     
-    if (!env?.SETTINGS) {
-      return NextResponse.json(
-        { error: 'Settings KV not available' },
-        { status: 503 }
-      );
-    }
-    
-    // KV에서 진행 상황 읽기 (타입 가드로 안전하게 처리)
     const settingsKV = env.SETTINGS;
     if (!settingsKV) {
       return NextResponse.json(
@@ -177,6 +169,8 @@ export async function GET(request: NextRequest) {
         { status: 503 }
       );
     }
+    
+    // KV에서 진행 상황 읽기
     const lastModDate = await settingsKV.get('last_mod_date');
     const lastPage = await settingsKV.get('incremental_fetch_last_page');
     
