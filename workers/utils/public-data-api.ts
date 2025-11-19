@@ -35,11 +35,16 @@ function getApiVersion(): 'legacy' | 'open' {
 
 /**
  * 공공데이터 API 응답 타입
+ * 
+ * items는 실제 API 응답에서 다양한 형태로 올 수 있음:
+ * - PublicDataStore[] (정상 배열)
+ * - string (빈 문자열 또는 JSON 문자열)
+ * - null 또는 undefined (데이터 없음)
  */
 interface PublicDataApiResponse {
   response: {
     body: {
-      items: PublicDataStore[];
+      items: PublicDataStore[] | string | null | undefined;
       numOfRows: number;
       pageNo: number;
       totalCount: number;
@@ -231,19 +236,27 @@ async function fetchStoreListInDongLegacy(
     }
     
     // items가 빈 문자열인 경우 처리
-    if (typeof data.response.body.items === 'string' && data.response.body.items.trim() === '') {
-      logger.warn('API response items is empty string', {
-        dongCode,
-        pageNo,
-        totalCount: data.response.body.totalCount,
-        numOfRows: data.response.body.numOfRows,
-      });
+    const itemsValue = data.response.body.items;
+    if (typeof itemsValue === 'string') {
+      const trimmed = itemsValue.trim();
+      if (trimmed === '') {
+        logger.warn('API response items is empty string', {
+          dongCode,
+          pageNo,
+          totalCount: data.response.body.totalCount,
+          numOfRows: data.response.body.numOfRows,
+        });
+        return [];
+      }
+      // 빈 문자열이 아니면 JSON 파싱 시도 (필요한 경우)
+      // 현재는 빈 문자열이 아닌 경우도 배열이 아니면 빈 배열 반환
       return [];
     }
 
-    const items = Array.isArray(data.response.body.items)
-      ? data.response.body.items
-      : [data.response.body.items];
+    // items가 배열인 경우
+    const items = Array.isArray(itemsValue)
+      ? itemsValue
+      : [itemsValue];
 
     // API 응답 로깅
     if (items.length > 0) {
@@ -524,9 +537,26 @@ export async function fetchStoreListByDate(
       return [];
     }
 
-    return Array.isArray(data.response.body.items)
-      ? data.response.body.items
-      : [data.response.body.items];
+    const itemsValue = data.response.body.items;
+    
+    // items가 null, undefined, 또는 빈 문자열인 경우
+    if (itemsValue === null || itemsValue === undefined) {
+      return [];
+    }
+    
+    if (typeof itemsValue === 'string') {
+      const trimmed = itemsValue.trim();
+      if (trimmed === '') {
+        return [];
+      }
+      // 빈 문자열이 아닌 경우도 배열이 아니면 빈 배열 반환
+      return [];
+    }
+
+    // items가 배열인 경우
+    return Array.isArray(itemsValue)
+      ? itemsValue
+      : [itemsValue];
   } catch (error) {
     logger.error('Failed to fetch store list by date', {
       lastModDate,

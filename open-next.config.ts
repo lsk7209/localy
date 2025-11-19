@@ -10,5 +10,18 @@ export default defineCloudflareConfig({
   // - incrementalCache: R2 또는 KV 캐시 설정
   // - tagCache: 태그 기반 캐시 설정
   // - queue: 큐 설정
+  
+  // Cloudflare 환경 최적화
+  // KV를 사용한 캐싱 (선택사항)
+  // incrementalCache: {
+  //   type: 'kv',
+  //   binding: 'CACHE',
+  // },
+  
+  // 태그 기반 캐시 (선택사항)
+  // tagCache: {
+  //   type: 'kv',
+  //   binding: 'TAG_CACHE',
+  // },
 });
 

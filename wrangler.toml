@@ -86,15 +86,18 @@ preview_id = "f64fc7ef32c14d6685f1d9c04cee825b"
 # max_batch_timeout = 30
 #
 # Cron Triggers
-# [triggers]
-# crons = [
-#   "0 * * * *",      # 초기 수집 (매 시간)
-#   "30 * * * *",     # 증분 수집 (매 시간 30분)
-#   "*/10 * * * *",   # 정규화 워커 (10분마다)
-#   "*/15 * * * *",   # 재시도 워커 (15분마다)
-#   "*/20 * * * *",   # AI 생성 워커 (20분마다)
-#   "0 */3 * * *"     # 발행 워커 (3시간마다)
-# ]
+# Cloudflare Pages 배포 시에는 Dashboard에서 설정 필요
+# Dashboard → Pages → Settings → Functions → Cron Triggers
+# Workers 배포 시에는 아래 주석 해제
+[triggers]
+crons = [
+  "0 * * * *",      # 초기 수집 (매 시간 정각)
+  "30 * * * *",     # 증분 수집 (매 시간 30분)
+  "*/10 * * * *",   # 정규화 워커 (10분마다)
+  "*/15 * * * *",   # 재시도 워커 (15분마다)
+  "*/20 * * * *",   # AI 생성 워커 (20분마다)
+  "0 */3 * * *"     # 발행 워커 (3시간마다 정각)
+]
 #
 # Environment Variables
 # [vars]
