@@ -119,16 +119,11 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // 즉시 응답 반환을 위한 작업 ID 생성
-    const jobId = `manual-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-    
-    // 백그라운드 작업 시작 (waitUntil 사용)
-    const processPromise = (async () => {
-      let totalInserted = 0;
-      let pagesProcessed = 0;
-      const errors: Array<{ page: number; error: string }> = [];
+    let totalInserted = 0;
+    let pagesProcessed = 0;
+    const errors: Array<{ page: number; error: string }> = [];
 
-      try {
+    try {
       if (type === 'dong') {
         // 행정동별 수집
         // dongCode는 이미 검증되었으므로 string으로 단언 가능
