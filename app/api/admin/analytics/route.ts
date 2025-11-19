@@ -6,15 +6,15 @@ import { checkAdminAPIRateLimit, createRateLimitResponse } from '@/workers/utils
 import { getCloudflareEnv } from '../../types';
 
 /**
- * Analytics 데이터 조회 API
+ * Analytics ?�이??조회 API
  * 
- * 발행 성과, 상위 페이지, 검색/크롤링 상태 등을 반환합니다.
+ * 발행 ?�과, ?�위 ?�이지, 검???�롤�??�태 ?�을 반환?�니??
  */
 export async function GET(request: NextRequest) {
   try {
     const env = getCloudflareEnv();
     
-    // Rate Limit 체크 (RATE_LIMIT KV가 없어도 동작하도록 try-catch)
+    // Rate Limit 체크 (RATE_LIMIT KV가 ?�어???�작?�도�?try-catch)
     let rateLimitResult;
     try {
       rateLimitResult = await checkAdminAPIRateLimit(env, request);
@@ -34,32 +34,32 @@ export async function GET(request: NextRequest) {
 
     const db = drizzle(env.DB, { schema });
     const { searchParams } = new URL(request.url);
-    const range = searchParams.get('range') || '오늘';
+    const range = searchParams.get('range') || '?�늘';
 
-    // 날짜 범위 계산
+    // ?�짜 범위 계산
     const now = Date.now();
     const today = Math.floor(now / 1000);
-    const todayStart = today - (today % 86400); // 오늘 00:00:00
+    const todayStart = today - (today % 86400); // ?�늘 00:00:00
     const todayStartDate = new Date(todayStart * 1000);
     
     let startDate: Date;
     switch (range) {
-      case '7일':
+      case '7??:
         startDate = new Date((todayStart - 7 * 86400) * 1000);
         break;
-      case '30일':
+      case '30??:
         startDate = new Date((todayStart - 30 * 86400) * 1000);
         break;
-      case '90일':
+      case '90??:
         startDate = new Date((todayStart - 90 * 86400) * 1000);
         break;
-      case '오늘':
+      case '?�늘':
       default:
         startDate = todayStartDate;
         break;
     }
 
-    // 기본값 설정
+    // 기본�??�정
     let totalPublished = { count: 0 };
     let thisWeekNew = { count: 0 };
     let periodUpdated = { count: 0 };
@@ -76,7 +76,7 @@ export async function GET(request: NextRequest) {
     }> = [];
     let publishedStats: Array<{ date: string; count: number }> = [];
 
-    // 각 쿼리를 개별적으로 try-catch로 처리
+    // �?쿼리�?개별?�으�?try-catch�?처리
     try {
       totalPublished = (await db
         .select({ count: count() })
@@ -142,7 +142,7 @@ export async function GET(request: NextRequest) {
       topPages = [];
     }
 
-    // 상위 페이지 포맷팅
+    // ?�위 ?�이지 ?�맷??
     const formattedTopPages = topPages.map((page) => {
       const slug = `${page.bizPlace.sido}-${page.bizPlace.sigungu}-${page.bizPlace.dong}-${page.bizPlace.category}`.toLowerCase();
       const url = `/shop/${slug}`;
@@ -153,39 +153,39 @@ export async function GET(request: NextRequest) {
       return {
         title,
         url,
-        pageviews: 0, // 추후 조회수 추적 시스템 구현 시 업데이트
-        visitors: 0, // 추후 방문자 추적 시스템 구현 시 업데이트
-        duration: '0분', // 추후 체류시간 추적 시스템 구현 시 업데이트
-        source: 'Direct', // 추후 유입경로 추적 시스템 구현 시 업데이트
+        pageviews: 0, // 추후 조회??추적 ?�스??구현 ???�데?�트
+        visitors: 0, // 추후 방문??추적 ?�스??구현 ???�데?�트
+        duration: '0�?, // 추후 체류?�간 추적 ?�스??구현 ???�데?�트
+        source: 'Direct', // 추후 ?�입경로 추적 ?�스??구현 ???�데?�트
         publishedAt: page.lastPublishedAt
           ? new Date((page.lastPublishedAt as unknown as number) * 1000).toISOString()
           : null,
       };
     });
 
-    // 검색/크롤링 상태 (KV에서 가져오기)
+    // 검???�롤�??�태 (KV?�서 가?�오�?
     let sitemapStatus = 'unknown';
     let lastIndexed = null;
     const indexNowLogs: Array<{ time: string; status: 'success' | 'fail'; engine: string }> = [];
 
-    if (env.SETTINGS) {
+    if (settingsKV) {
       try {
-        // Sitemap 상태
-        const sitemapStatusValue = await env.SETTINGS.get('sitemap:status');
+        // Sitemap ?�태
+        const sitemapStatusValue = await settingsKV.get('sitemap:status');
         sitemapStatus = sitemapStatusValue || 'unknown';
 
-        // 최근 색인 시간
-        const lastIndexedValue = await env.SETTINGS.get('sitemap:last_indexed');
+        // 최근 ?�인 ?�간
+        const lastIndexedValue = await settingsKV.get('sitemap:last_indexed');
         if (lastIndexedValue) {
           lastIndexed = new Date(lastIndexedValue).toLocaleString('ko-KR');
         }
 
-        // IndexNow 로그 (최근 10개)
-        const indexNowList = await env.SETTINGS.list({ prefix: 'indexnow:' });
+        // IndexNow 로그 (최근 10�?
+        const indexNowList = await settingsKV.list({ prefix: 'indexnow:' });
         const indexNowEntries = await Promise.all(
           indexNowList.keys.slice(0, 10).map(async (key) => {
             try {
-              const value = await env.SETTINGS.get(key.name);
+              const value = await settingsKV.get(key.name);
               if (!value) return null;
               const log = JSON.parse(value);
               return {
@@ -209,7 +209,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // 선택한 기간 내 발행 통계 (차트용)
+    // ?�택??기간 ??발행 ?�계 (차트??
     try {
       publishedStats = await db
         .select({
@@ -232,21 +232,21 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({
-      // 발행 성과
+      // 발행 ?�과
       publishStats: {
         totalPublished: totalPublished?.count || 0,
         thisWeekNew: thisWeekNew?.count || 0,
         periodUpdated: periodUpdated?.count || 0,
       },
-      // 상위 페이지
+      // ?�위 ?�이지
       topPages: formattedTopPages,
-      // 검색/크롤링 상태
+      // 검???�롤�??�태
       searchStatus: {
         sitemapStatus,
         lastIndexed,
         indexNowLogs,
       },
-      // 차트 데이터
+      // 차트 ?�이??
       chartData: publishedStats.map((stat) => ({
         date: stat.date,
         count: stat.count,
