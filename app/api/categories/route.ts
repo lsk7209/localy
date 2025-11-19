@@ -96,9 +96,12 @@ export async function GET(request: NextRequest) {
           },
         });
       } catch (dbError) {
+        const dbErrorObj = dbError instanceof Error ? dbError : new Error(String(dbError));
         logger.error('Failed to fetch stores by category', {
           category,
-        }, dbError instanceof Error ? dbError : new Error(String(dbError)));
+          error: dbErrorObj.message,
+          stack: dbErrorObj.stack,
+        }, dbErrorObj);
         throw dbError;
       }
     }
