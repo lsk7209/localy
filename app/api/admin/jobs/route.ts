@@ -1,16 +1,23 @@
-import { NextRequest, NextResponse } from 'next/server';
+mport { NextRequest, NextResponse } from 'next/server';
 import { checkAdminAPIRateLimit, createRateLimitResponse } from '@/workers/utils/rate-limit';
 import { getCloudflareEnv } from '../../types';
 
-/**
- * 관리자 Jobs 로그 API
- * KV에서 메트릭 데이터를 읽어서 반환
- */
+// Korean string constants (encoding issue prevention)
+const PERIOD_ALL = String.fromCharCode(0xC804, 0xCCB4); // '전체'
+const PERIOD_7_DAYS = String.fromCharCode(0xCD5C, 0xAD6C, 0x0020, 0x0037, 0xC77C); // '최근 7일'
+const PERIOD_30_DAYS = String.fromCharCode(0xCD5C, 0xAD6C, 0x0020, 0x0033, 0x0030, 0xC77C); // '최근 30일'
+const PERIOD_90_DAYS = String.fromCharCode(0xCD5C, 0xAD6C, 0x0020, 0x0039, 0x0030, 0xC77C); // '최근 90일'
+const STATUS_SUCCESS = String.fromCharCode(0xC131, 0xACF5); // '성공'
+const STATUS_FAIL = String.fromCharCode(0xC2E4, 0xD328); // '실패'
+const TYPE_NORMALIZE = String.fromCharCode(0xC815, 0xADDC, 0xD654); // '정규화'
+const TYPE_PUBLISH = String.fromCharCode(0xBC1C, 0xD589); // '발행'
+const TYPE_FETCH = String.fromCharCode(0xC218, 0xC9D1); // '수집'
+const TYPE_RETRY = String.fromCharCode(0xC7AC, 0xC2DC, 0xB3C4); // '재시도'
+
 export async function GET(request: NextRequest) {
   try {
     const env = getCloudflareEnv();
     
-    // Rate Limit 체크
     const rateLimitResult = await checkAdminAPIRateLimit(env, request);
     if (!rateLimitResult.allowed) {
       return createRateLimitResponse(rateLimitResult);
@@ -24,30 +31,34 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const jobType = searchParams.get('type') || '전체';
-    const status = searchParams.get('status') || '전체';
-    const period = searchParams.get('period') || '최근 7일';
+    const jobType = searchParams.get('type') || PERIOD_ALL;
+    const status = searchParams.get('status') || PERIOD_ALL;
+    const period = searchParams.get('period') || PERIOD_7_DAYS;
 
-    // 기간 계산
     const now = Date.now();
     let startTime = 0;
     switch (period) {
-      case '최근 7일':
+      case PERIOD_7_DAYS:
         startTime = now - 7 * 24 * 60 * 60 * 1000;
         break;
-      case '최근 30일':
+      case PERIOD_30_DAYS:
         startTime = now - 30 * 24 * 60 * 60 * 1000;
         break;
-      case '최근 90일':
+      case PERIOD_90_DAYS:
         startTime = now - 90 * 24 * 60 * 60 * 1000;
         break;
-      case '전체':
+      case PERIOD_ALL:
         startTime = 0;
         break;
     }
 
     // KV에서 메트릭 목록 가져오기
-    const list = await env.SETTINGS.list({ prefix: 'metrics:' });
+    const settingsKV = env.SETTINGS;
+    if (!settingsKV) {
+      return NextResponse.json({ jobs: [] });
+    }
+
+    const list = await settingsKV.list({ prefix: 'metrics:' });
     const jobs: Array<{
       id: string;
       time: string;
@@ -59,7 +70,7 @@ export async function GET(request: NextRequest) {
 
     for (const key of list.keys) {
       try {
-        const value = await env.SETTINGS.get(key.name);
+        const value = await settingsKV.get(key.name);
         if (!value) continue;
 
         const metric = JSON.parse(value);
@@ -68,25 +79,22 @@ export async function GET(request: NextRequest) {
         // 기간 필터링
         if (metricTime < startTime) continue;
 
-        // 작업 타입 매핑
         const typeMap: Record<string, string> = {
-          'normalize': '정규화',
+          'normalize': TYPE_NORMALIZE,
           'ai-generation': 'AI',
-          'publish': '발행',
-          'initial-fetch': '수집',
-          'incremental-fetch': '수집',
-          'retry': '재시도',
+          'publish': TYPE_PUBLISH,
+          'initial-fetch': TYPE_FETCH,
+          'incremental-fetch': TYPE_FETCH,
+          'retry': TYPE_RETRY,
         };
 
         const displayType = typeMap[metric.workerName] || metric.workerName;
 
-        // 타입 필터링
-        if (jobType !== '전체' && displayType !== jobType) continue;
+        if (jobType !== PERIOD_ALL && displayType !== jobType) continue;
 
-        // 상태 필터링
-        if (status !== '전체') {
-          if (status === '성공' && !metric.success) continue;
-          if (status === '실패' && metric.success) continue;
+        if (status !== PERIOD_ALL) {
+          if (status === STATUS_SUCCESS && !metric.success) continue;
+          if (status === STATUS_FAIL && metric.success) continue;
         }
 
         jobs.push({
@@ -95,7 +103,7 @@ export async function GET(request: NextRequest) {
           type: displayType,
           count: metric.itemsProcessed || 0,
           status: metric.success ? 'success' : 'fail',
-          message: metric.error || `${displayType} 완료`,
+          message: metric.error || `${displayType} ${String.fromCharCode(0xC644, 0xB8CC)}`,
         });
       } catch (e) {
         console.error(`Failed to parse metric: ${key.name}`, e);
