@@ -48,7 +48,7 @@ export async function handleIncrementalFetch(
 
     // 이전 실행에서 중단된 페이지 번호 복원
     const lastPageStr = await getSetting(env, 'incremental_fetch_last_page');
-    let pageNo = safeParseInt(lastPageStr, 1, 1);
+    let pageNo: number = safeParseInt(lastPageStr, 1, 1) ?? 1;
     let hasMore = true;
     let totalStoresUpdated = 0;
 
@@ -82,7 +82,7 @@ export async function handleIncrementalFetch(
         const stores = await retryWithBackoff(
           async () => {
             return await withTimeout(
-              fetchStoreListByDate(formattedDate, apiKey, pageNo),
+              fetchStoreListByDate(formattedDate, apiKey, pageNo ?? 1),
               20000,
               `API timeout for page ${pageNo}`
             );
