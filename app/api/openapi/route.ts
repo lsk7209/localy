@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+mport { NextResponse } from 'next/server';
 
 /**
  * OpenAPI 3.0 스펙 정의
@@ -90,7 +90,7 @@ const openApiSpec = {
         ],
         responses: {
           '200': {
-            description: '성공',
+            description: 'Success',
             content: {
               'application/json': {
                 schema: {
@@ -161,7 +161,7 @@ const openApiSpec = {
         ],
         responses: {
           '200': {
-            description: '성공',
+            description: 'Success',
             content: {
               'application/json': {
                 schema: {
@@ -231,7 +231,7 @@ const openApiSpec = {
         ],
         responses: {
           '200': {
-            description: '성공',
+            description: 'Success',
             content: {
               'application/json': {
                 schema: {
@@ -285,7 +285,7 @@ const openApiSpec = {
         ],
         responses: {
           '200': {
-            description: '성공',
+            description: 'Success',
             content: {
               'application/json': {
                 schema: {
@@ -329,7 +329,7 @@ const openApiSpec = {
         ],
         responses: {
           '200': {
-            description: '성공',
+            description: 'Success',
             content: {
               'application/json': {
                 schema: {
@@ -381,7 +381,7 @@ const openApiSpec = {
         ],
         responses: {
           '200': {
-            description: '성공',
+            description: 'Success',
             content: {
               'application/json': {
                 schema: {
@@ -444,7 +444,7 @@ const openApiSpec = {
         },
         responses: {
           '200': {
-            description: '성공',
+            description: 'Success',
             content: {
               'application/json': {
                 schema: {
@@ -510,7 +510,7 @@ const openApiSpec = {
         },
         responses: {
           '200': {
-            description: '성공',
+            description: 'Success',
             content: {
               'application/json': {
                 schema: {
@@ -799,7 +799,7 @@ const openApiSpec = {
           },
           publishedLast7Days: {
             type: 'integer',
-            description: '최근 7일 발행 수',
+            description: 'Published count in last 7 days',
           },
           totalRegions: {
             type: 'integer',
