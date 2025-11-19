@@ -138,9 +138,14 @@ export async function updateSitemap(
         }
 
         // KV 배치 저장을 병렬로 처리
+        const sitemapKV = env.SITEMAP;
+        if (!sitemapKV) {
+          logger.warn('SITEMAP KV namespace not configured. Skipping sitemap storage.');
+          return;
+        }
         const putPromises = sitemapFiles.map((_, index) => {
           const sitemapKey = `sitemap-${index + 1}.xml`;
-          return env.SITEMAP.put(sitemapKey, sitemapXmls[index], {
+          return sitemapKV.put(sitemapKey, sitemapXmls[index], {
             metadata: {
               contentType: 'application/xml',
               lastModified: new Date().toISOString(),

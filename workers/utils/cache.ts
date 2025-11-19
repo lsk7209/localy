@@ -136,8 +136,12 @@ export async function deleteCachePattern(env: { CACHE?: KVNamespace }, pattern: 
     }
 
     // 배치 삭제: Promise.all로 병렬 처리하여 성능 향상
+    const cacheKV = env.CACHE;
+    if (!cacheKV) {
+      return;
+    }
     const deletePromises = keys.keys.map((key) =>
-      env.CACHE.delete(key.name).catch((error) => {
+      cacheKV.delete(key.name).catch((error) => {
         console.error(`Failed to delete cache key: ${key.name}`, {
           error: error instanceof Error ? error.message : String(error),
         });
