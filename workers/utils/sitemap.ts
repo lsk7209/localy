@@ -119,33 +119,33 @@ export async function updateSitemap(
     });
     
     // Sitemap을 KV에 저장
-    if (env.SITEMAP) {
-      try {
-        // Sitemap Index 저장
-        const sitemapIndexKey = 'sitemap-index.xml';
-        await env.SITEMAP.put(sitemapIndexKey, sitemapIndexXml, {
-          metadata: {
-            contentType: 'application/xml',
-            lastModified: new Date().toISOString(),
-          },
-        });
+    const sitemapKV = env.SITEMAP;
+    if (!sitemapKV) {
+      logger.warn('SITEMAP KV namespace not configured. Skipping sitemap storage.');
+      return;
+    }
+    
+    try {
+      // Sitemap Index 저장
+      const sitemapIndexKey = 'sitemap-index.xml';
+      await sitemapKV.put(sitemapIndexKey, sitemapIndexXml, {
+        metadata: {
+          contentType: 'application/xml',
+          lastModified: new Date().toISOString(),
+        },
+      });
 
-        // 각 Sitemap 파일 저장 (병렬 처리로 최적화)
-        const sitemapXmls: string[] = [];
-        for (let i = 0; i < sitemapItems.length; i += SITEMAP_MAX_URLS) {
-          const chunk = sitemapItems.slice(i, i + SITEMAP_MAX_URLS);
-          sitemapXmls.push(generateSitemapXml(chunk));
-        }
+      // 각 Sitemap 파일 저장 (병렬 처리로 최적화)
+      const sitemapXmls: string[] = [];
+      for (let i = 0; i < sitemapItems.length; i += SITEMAP_MAX_URLS) {
+        const chunk = sitemapItems.slice(i, i + SITEMAP_MAX_URLS);
+        sitemapXmls.push(generateSitemapXml(chunk));
+      }
 
-        // KV 배치 저장을 병렬로 처리
-        const sitemapKV = env.SITEMAP;
-        if (!sitemapKV) {
-          logger.warn('SITEMAP KV namespace not configured. Skipping sitemap storage.');
-          return;
-        }
-        const putPromises = sitemapFiles.map((_, index) => {
-          const sitemapKey = `sitemap-${index + 1}.xml`;
-          return sitemapKV.put(sitemapKey, sitemapXmls[index], {
+      // KV 배치 저장을 병렬로 처리
+      const putPromises = sitemapFiles.map((_, index) => {
+        const sitemapKey = `sitemap-${index + 1}.xml`;
+        return sitemapKV.put(sitemapKey, sitemapXmls[index], {
             metadata: {
               contentType: 'application/xml',
               lastModified: new Date().toISOString(),
@@ -160,15 +160,12 @@ export async function updateSitemap(
 
         await Promise.all(putPromises);
 
-        logger.info('Saved sitemap files to KV', {
-          fileCount: sitemapFiles.length + 1,
-        });
-      } catch (error) {
-        logger.error('Failed to save sitemap to KV', {}, error instanceof Error ? error : new Error(String(error)));
-        // KV 저장 실패해도 계속 진행 (다음 실행에서 재시도)
-      }
-    } else {
-      logger.warn('SITEMAP KV namespace not configured. Skipping sitemap storage.');
+      logger.info('Saved sitemap files to KV', {
+        fileCount: sitemapFiles.length + 1,
+      });
+    } catch (error) {
+      logger.error('Failed to save sitemap to KV', {}, error instanceof Error ? error : new Error(String(error)));
+      // KV 저장 실패해도 계속 진행 (다음 실행에서 재시도)
     }
   } catch (error) {
     logger.error('Failed to update sitemap', {
