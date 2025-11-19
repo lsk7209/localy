@@ -1,4 +1,4 @@
-mport { NextResponse } from 'next/server';
+port { NextResponse } from 'next/server';
 
 /**
  * OpenAPI 3.0 스펙 정의
@@ -47,7 +47,7 @@ const openApiSpec = {
           {
             name: 'region',
             in: 'query',
-            description: '지역 필터 (동, 시군구, 시도)',
+            description: 'Region filter (dong, sigungu, sido)',
             required: false,
             schema: {
               type: 'string',
@@ -215,15 +215,15 @@ const openApiSpec = {
     },
     '/api/region/{name}': {
       get: {
-        summary: '지역별 통계 조회',
-        description: '지역(동, 시군구, 시도)별 상가 통계 정보를 조회합니다',
+        summary: 'Get region statistics',
+        description: 'Get store statistics by region (dong, sigungu, sido)',
         tags: ['Regions'],
         parameters: [
           {
             name: 'name',
             in: 'path',
             required: true,
-            description: '지역명',
+            description: 'Region name',
             schema: {
               type: 'string',
             },
@@ -430,11 +430,11 @@ const openApiSpec = {
                 properties: {
                   aiEnabled: {
                     type: 'boolean',
-                    description: 'AI 생성 활성화 여부',
+                    description: 'AI generation enabled',
                   },
                   publishRateLimit: {
                     type: 'integer',
-                    description: '발행 속도 제한',
+                    description: 'Publish rate limit',
                     minimum: 1,
                   },
                 },
@@ -626,7 +626,7 @@ const openApiSpec = {
           lastPublishedAt: {
             type: 'integer',
             nullable: true,
-            description: '마지막 발행 시간 (Unix timestamp)',
+            description: 'Last published time (Unix timestamp)',
           },
         },
       },
@@ -704,7 +704,7 @@ const openApiSpec = {
           summary: {
             type: 'string',
             nullable: true,
-            description: 'AI 생성 요약',
+            description: 'AI generated summary',
           },
           faq: {
             type: 'array',
@@ -719,12 +719,12 @@ const openApiSpec = {
                 },
               },
             },
-            description: 'AI 생성 FAQ',
+            description: 'AI generated FAQ',
           },
           lastPublishedAt: {
             type: 'integer',
             nullable: true,
-            description: '마지막 발행 시간 (Unix timestamp)',
+            description: 'Last published time (Unix timestamp)',
           },
         },
       },
@@ -733,7 +733,7 @@ const openApiSpec = {
         properties: {
           regionName: {
             type: 'string',
-            description: '지역명',
+            description: 'Region name',
           },
           totalStores: {
             type: 'integer',
@@ -787,11 +787,11 @@ const openApiSpec = {
           },
           totalPublished: {
             type: 'integer',
-            description: '전체 발행 수',
+            description: 'Total published count',
           },
           publishedStores: {
             type: 'integer',
-            description: '발행된 상가 수',
+            description: 'Published stores count',
           },
           pendingPublish: {
             type: 'integer',
@@ -809,7 +809,7 @@ const openApiSpec = {
             type: 'string',
             nullable: true,
             format: 'date-time',
-            description: '최종 업데이트 시간',
+            description: 'Last updated time',
           },
         },
       },
@@ -826,7 +826,7 @@ const openApiSpec = {
           },
           nextDongIndex: {
             type: 'integer',
-            description: '다음 동 인덱스',
+            description: 'Next dong index',
           },
           lastModDate: {
             type: 'string',
@@ -908,7 +908,7 @@ const openApiSpec = {
           retryAfter: {
             type: 'integer',
             nullable: true,
-            description: '재시도 가능 시간 (초)',
+            description: 'Retry available time (seconds)',
           },
         },
       },
@@ -917,15 +917,15 @@ const openApiSpec = {
   tags: [
     {
       name: 'Shops',
-      description: '상가 관련 API',
+      description: 'Store related API',
     },
     {
       name: 'Regions',
-      description: '지역 관련 API',
+      description: 'Region related API',
     },
     {
       name: 'Admin',
-      description: '관리자 API (인증 필요)',
+      description: 'Admin API (authentication required)',
     },
     {
       name: 'ISR',
