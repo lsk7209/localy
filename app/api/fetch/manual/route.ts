@@ -142,7 +142,7 @@ export async function POST(request: NextRequest) {
             const stores = await withTimeout(
               fetchStoreListInDong(validatedDongCode, publicDataApiKey, pageNo),
               20000,
-              `API timeout for dong ${dongCode}, page ${pageNo}`
+              `API timeout for dong ${validatedDongCode}, page ${pageNo}`
             );
 
             if (stores.length === 0) {
