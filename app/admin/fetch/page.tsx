@@ -85,7 +85,7 @@ export default function FetchManagementPage() {
   const [manualType, setManualType] = useState<'dong' | 'date'>('dong');
   const [manualDongCode, setManualDongCode] = useState('');
   const [manualDate, setManualDate] = useState('');
-  const [manualMaxPages, setManualMaxPages] = useState(10);
+  const [manualMaxPages, setManualMaxPages] = useState(5);
 
   // 초기 로드 및 주기적 업데이트
   useEffect(() => {
@@ -196,7 +196,7 @@ export default function FetchManagementPage() {
           type: manualType,
           dongCode: manualType === 'dong' ? manualDongCode.trim() : undefined,
           date: manualType === 'date' ? manualDate.trim() : undefined,
-          maxPages: manualMaxPages || 10,
+          maxPages: manualMaxPages || 5,
         }),
       });
 
@@ -668,7 +668,7 @@ export default function FetchManagementPage() {
               label="최대 페이지 수"
               type="number"
               value={manualMaxPages}
-              onChange={(e) => setManualMaxPages(parseInt(e.target.value) || 10)}
+              onChange={(e) => setManualMaxPages(parseInt(e.target.value) || 5)}
               helperText="수집할 최대 페이지 수를 입력하세요 (기본값: 10)"
               fullWidth
               inputProps={{
