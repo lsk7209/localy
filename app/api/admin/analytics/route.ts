@@ -13,7 +13,6 @@ const RANGE_90_DAYS = String.fromCharCode(0x0039, 0x0030, 0xC77C);
 
 /**
  * Analytics data query API
- * 
  * Returns publishing performance, top pages, search/crawling status, etc.
  */
 export async function GET(request: NextRequest) {
