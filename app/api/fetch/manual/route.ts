@@ -1,0 +1,363 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { getCloudflareEnv } from '../../types';
+import { logger } from '@/workers/utils/logger';
+import type { Env } from '@/workers/types';
+import type { ExecutionContext } from '@cloudflare/workers-types';
+import { drizzle } from 'drizzle-orm/d1';
+import * as schema from '@/db/schema';
+import { count } from 'drizzle-orm';
+import { requirePublicDataApiKey } from '@/workers/utils/env';
+import { fetchStoreListInDong, fetchStoreListByDate, formatDateForApi } from '@/workers/utils/public-data-api';
+import { prepareStoreForInsert, upsertStoresIndividually } from '@/workers/utils/store-processing';
+import { chunkArray, D1_BATCH_LIMITS, withTimeout } from '@/workers/utils/performance';
+import { sql } from 'drizzle-orm';
+
+/**
+ * 수동 수집 API
+ * 
+ * 특정 행정동 코드나 날짜를 지정하여 공공데이터를 수집하고 데이터베이스에 저장합니다.
+ * 
+ * @example
+ * POST /api/fetch/manual
+ * Body: { "type": "dong", "dongCode": "1168010100", "maxPages": 10 }
+ * 또는
+ * Body: { "type": "date", "date": "20250119", "maxPages": 10 }
+ */
+export async function POST(request: NextRequest) {
+  try {
+    const env = getCloudflareEnv();
+    
+    // API 키 검증 (선택사항)
+    const authHeader = request.headers.get('authorization');
+    const apiKey = authHeader?.replace('Bearer ', '') || request.headers.get('x-api-key');
+    const expectedKey = env.REVALIDATE_API_KEY;
+    
+    if (expectedKey && apiKey !== expectedKey) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+    
+    if (!env?.DB || !env?.SETTINGS) {
+      return NextResponse.json(
+        { error: 'Database or Settings KV not available' },
+        { status: 503 }
+      );
+    }
+
+    // 요청 본문 파싱
+    const body = await request.json().catch(() => ({}));
+    const { type, dongCode, date, maxPages = 10 } = body;
+
+    if (!type || (type !== 'dong' && type !== 'date')) {
+      return NextResponse.json(
+        { error: 'Invalid type. Must be "dong" or "date"' },
+        { status: 400 }
+      );
+    }
+
+    if (type === 'dong' && !dongCode) {
+      return NextResponse.json(
+        { error: 'dongCode is required when type is "dong"' },
+        { status: 400 }
+      );
+    }
+
+    if (type === 'date' && !date) {
+      return NextResponse.json(
+        { error: 'date is required when type is "date"' },
+        { status: 400 }
+      );
+    }
+
+    // 공공데이터 API 키 검증
+    let publicDataApiKey: string;
+    try {
+      publicDataApiKey = requirePublicDataApiKey(env);
+    } catch (error) {
+      return NextResponse.json(
+        { error: 'Public Data API key not configured' },
+        { status: 503 }
+      );
+    }
+
+    // ExecutionContext 모의 객체 생성
+    const ctx: ExecutionContext = {
+      waitUntil: (promise: Promise<unknown>) => {
+        promise.catch((error) => {
+          logger.error('waitUntil promise failed', {}, error instanceof Error ? error : new Error(String(error)));
+        });
+      },
+      passThroughOnException: () => {},
+    } as ExecutionContext;
+
+    const db = drizzle(env.DB, { schema });
+    
+    // 수집 전 데이터베이스 카운트 확인
+    let beforeCountValue = 0;
+    try {
+      const beforeCount = await db
+        .select({ count: count() })
+        .from(schema.rawStore)
+        .get();
+      beforeCountValue = beforeCount?.count || 0;
+    } catch (dbError) {
+      logger.warn('Failed to get before count, using 0', {
+        error: dbError instanceof Error ? dbError.message : String(dbError),
+      });
+    }
+
+    let totalInserted = 0;
+    let pagesProcessed = 0;
+    const errors: Array<{ page: number; error: string }> = [];
+
+    try {
+      if (type === 'dong') {
+        // 행정동별 수집
+        logger.info('Manual fetch by dong code', {
+          dongCode,
+          maxPages,
+        });
+
+        let pageNo = 1;
+        let hasMore = true;
+
+        while (hasMore && pageNo <= maxPages) {
+          try {
+            const stores = await withTimeout(
+              fetchStoreListInDong(dongCode, publicDataApiKey, pageNo),
+              20000,
+              `API timeout for dong ${dongCode}, page ${pageNo}`
+            );
+
+            if (stores.length === 0) {
+              hasMore = false;
+              break;
+            }
+
+            // 데이터 준비 및 검증
+            const insertValues = stores
+              .map((store) => {
+                const prepared = prepareStoreForInsert(store);
+                if (!prepared.sourceId || prepared.sourceId.trim() === '') {
+                  logger.warn('Store missing sourceId', {
+                    dongCode,
+                    pageNo,
+                    store: JSON.stringify(store).substring(0, 200),
+                  });
+                  return null;
+                }
+                return prepared;
+              })
+              .filter((item): item is NonNullable<typeof item> => item !== null);
+
+            if (insertValues.length > 0) {
+              // 배치 INSERT
+              const chunks = chunkArray(insertValues, D1_BATCH_LIMITS.MAX_INSERT_ROWS);
+              
+              for (const chunk of chunks) {
+                try {
+                  await db.insert(schema.rawStore).values(chunk).onConflictDoNothing();
+                  totalInserted += chunk.length;
+                } catch (insertError) {
+                  // 배치 INSERT 실패 시 개별 UPSERT로 폴백
+                  const successCount = await upsertStoresIndividually(
+                    db,
+                    chunk,
+                    (sourceId, error) => {
+                      logger.error('Failed to insert store', {
+                        sourceId,
+                        error: error.message,
+                      });
+                    }
+                  );
+                  totalInserted += successCount;
+                }
+              }
+            }
+
+            pagesProcessed++;
+            pageNo++;
+
+            // 다음 페이지가 없으면 종료
+            if (stores.length < 1000) {
+              hasMore = false;
+            }
+          } catch (pageError) {
+            const errorMessage = pageError instanceof Error ? pageError.message : String(pageError);
+            errors.push({ page: pageNo, error: errorMessage });
+            logger.error('Failed to fetch page', {
+              dongCode,
+              pageNo,
+              error: errorMessage,
+            });
+            pageNo++;
+            // 에러가 발생해도 다음 페이지 시도
+          }
+        }
+      } else if (type === 'date') {
+        // 날짜별 증분 수집
+        const formattedDate = formatDateForApi(date);
+        logger.info('Manual fetch by date', {
+          date: formattedDate,
+          maxPages,
+        });
+
+        let pageNo = 1;
+        let hasMore = true;
+
+        while (hasMore && pageNo <= maxPages) {
+          try {
+            const stores = await withTimeout(
+              fetchStoreListByDate(formattedDate, publicDataApiKey, pageNo),
+              20000,
+              `API timeout for date ${formattedDate}, page ${pageNo}`
+            );
+
+            if (stores.length === 0) {
+              hasMore = false;
+              break;
+            }
+
+            // 데이터 준비 및 검증
+            const insertValues = stores
+              .map((store) => {
+                const prepared = prepareStoreForInsert(store);
+                if (!prepared.sourceId || prepared.sourceId.trim() === '') {
+                  logger.warn('Store missing sourceId', {
+                    date: formattedDate,
+                    pageNo,
+                    store: JSON.stringify(store).substring(0, 200),
+                  });
+                  return null;
+                }
+                return prepared;
+              })
+              .filter((item): item is NonNullable<typeof item> => item !== null);
+
+            if (insertValues.length > 0) {
+              // 배치 INSERT
+              const chunks = chunkArray(insertValues, D1_BATCH_LIMITS.MAX_INSERT_ROWS);
+              
+              for (const chunk of chunks) {
+                try {
+                  await db.insert(schema.rawStore).values(chunk).onConflictDoNothing();
+                  totalInserted += chunk.length;
+                } catch (insertError) {
+                  // 배치 INSERT 실패 시 개별 UPSERT로 폴백
+                  const successCount = await upsertStoresIndividually(
+                    db,
+                    chunk,
+                    (sourceId, error) => {
+                      logger.error('Failed to insert store', {
+                        sourceId,
+                        error: error.message,
+                      });
+                    }
+                  );
+                  totalInserted += successCount;
+                }
+              }
+            }
+
+            pagesProcessed++;
+            pageNo++;
+
+            // 다음 페이지가 없으면 종료
+            if (stores.length < 1000) {
+              hasMore = false;
+            }
+          } catch (pageError) {
+            const errorMessage = pageError instanceof Error ? pageError.message : String(pageError);
+            errors.push({ page: pageNo, error: errorMessage });
+            logger.error('Failed to fetch page', {
+              date: formattedDate,
+              pageNo,
+              error: errorMessage,
+            });
+            pageNo++;
+            // 에러가 발생해도 다음 페이지 시도
+          }
+        }
+      }
+
+      // 수집 후 데이터베이스 카운트 확인
+      let afterCountValue = beforeCountValue;
+      try {
+        const afterCount = await db
+          .select({ count: count() })
+          .from(schema.rawStore)
+          .get();
+        afterCountValue = afterCount?.count || 0;
+      } catch (dbError) {
+        logger.warn('Failed to get after count', {
+          error: dbError instanceof Error ? dbError.message : String(dbError),
+        });
+      }
+
+      logger.info('Manual fetch completed', {
+        type,
+        dongCode: type === 'dong' ? dongCode : undefined,
+        date: type === 'date' ? date : undefined,
+        beforeCount: beforeCountValue,
+        afterCount: afterCountValue,
+        insertedCount: totalInserted,
+        pagesProcessed,
+        errors: errors.length,
+      });
+
+      return NextResponse.json({
+        success: true,
+        message: 'Manual fetch completed',
+        data: {
+          type,
+          dongCode: type === 'dong' ? dongCode : undefined,
+          date: type === 'date' ? date : undefined,
+          beforeCount: beforeCountValue,
+          afterCount: afterCountValue,
+          insertedCount: totalInserted,
+          pagesProcessed,
+          errors: errors.length > 0 ? errors : undefined,
+        },
+        timestamp: new Date().toISOString(),
+      });
+    } catch (fetchError) {
+      // 수집 실패 시에도 카운트 확인
+      let afterCountValue = beforeCountValue;
+      try {
+        const afterCount = await db
+          .select({ count: count() })
+          .from(schema.rawStore)
+          .get();
+        afterCountValue = afterCount?.count || 0;
+      } catch (dbError) {
+        logger.warn('Failed to get after count after error', {
+          error: dbError instanceof Error ? dbError.message : String(dbError),
+        });
+      }
+
+      logger.error('Manual fetch failed', {
+        type,
+        dongCode: type === 'dong' ? dongCode : undefined,
+        date: type === 'date' ? date : undefined,
+        beforeCount: beforeCountValue,
+        afterCount: afterCountValue,
+      }, fetchError instanceof Error ? fetchError : new Error(String(fetchError)));
+
+      throw fetchError;
+    }
+  } catch (error) {
+    const errorObj = error instanceof Error ? error : new Error(String(error));
+    logger.error('Failed to trigger manual fetch', {}, errorObj);
+    
+    return NextResponse.json(
+      {
+        error: 'Failed to trigger manual fetch',
+        message: errorObj.message,
+      },
+      { status: 500 }
+    );
+  }
+}
+

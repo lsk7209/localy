@@ -22,8 +22,21 @@ import {
   Error as ErrorIcon,
   Warning as WarningIcon,
   Info as InfoIcon,
+  Settings as SettingsIcon,
 } from '@mui/icons-material';
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  FormHelperText,
+} from '@mui/material';
 
 /**
  * 수집 상태 인터페이스
@@ -54,15 +67,25 @@ interface FetchStatus {
 }
 
 /**
+ * Component: FetchManagementPage
  * 공공데이터 수집 관리 페이지
+ * @param {void} - Props 없음
+ * @example <FetchManagementPage />
  */
 export default function FetchManagementPage() {
   const [status, setStatus] = useState<FetchStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [triggering, setTriggering] = useState<'initial' | 'incremental' | null>(null);
+  const [triggering, setTriggering] = useState<'initial' | 'incremental' | 'manual' | null>(null);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
-  const [lastFetchResult, setLastFetchResult] = useState<{ type: 'initial' | 'incremental'; insertedCount: number; beforeCount: number; afterCount: number } | null>(null);
+  const [lastFetchResult, setLastFetchResult] = useState<{ type: 'initial' | 'incremental' | 'manual'; insertedCount: number; beforeCount: number; afterCount: number } | null>(null);
+  
+  // 수동 수집 다이얼로그 상태
+  const [manualDialogOpen, setManualDialogOpen] = useState(false);
+  const [manualType, setManualType] = useState<'dong' | 'date'>('dong');
+  const [manualDongCode, setManualDongCode] = useState('');
+  const [manualDate, setManualDate] = useState('');
+  const [manualMaxPages, setManualMaxPages] = useState(10);
 
   // 초기 로드 및 주기적 업데이트
   useEffect(() => {
@@ -147,6 +170,76 @@ export default function FetchManagementPage() {
   }, [fetchStatus]);
 
   /**
+   * 수동 수집 트리거
+   */
+  const triggerManualFetch = useCallback(async () => {
+    if (manualType === 'dong' && !manualDongCode.trim()) {
+      setError('행정동 코드를 입력해주세요');
+      return;
+    }
+    if (manualType === 'date' && !manualDate.trim()) {
+      setError('날짜를 입력해주세요 (YYYYMMDD 형식)');
+      return;
+    }
+
+    try {
+      setTriggering('manual');
+      setError(null);
+      setManualDialogOpen(false);
+      
+      const response = await fetch('/api/fetch/manual', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          type: manualType,
+          dongCode: manualType === 'dong' ? manualDongCode.trim() : undefined,
+          date: manualType === 'date' ? manualDate.trim() : undefined,
+          maxPages: manualMaxPages || 10,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || '수동 수집 시작에 실패했습니다');
+      }
+
+      const data = await response.json();
+      
+      // 수집 결과 저장
+      if (data.data) {
+        setLastFetchResult({
+          type: 'manual',
+          insertedCount: data.data.insertedCount || 0,
+          beforeCount: data.data.beforeCount || 0,
+          afterCount: data.data.afterCount || 0,
+        });
+        
+        if (data.data.insertedCount > 0) {
+          // 성공 메시지는 Alert로 표시하지 않고 상태만 갱신
+        } else {
+          setError('수집이 완료되었지만 새로운 데이터가 저장되지 않았습니다.');
+        }
+        
+        if (data.data.errors && data.data.errors.length > 0) {
+          setError(`일부 페이지 수집 실패: ${data.data.errors.length}개 페이지`);
+        }
+      }
+      
+      // 성공 후 상태 갱신
+      setTimeout(() => {
+        fetchStatus();
+      }, 2000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '알 수 없는 오류');
+      setLastFetchResult(null);
+    } finally {
+      setTriggering(null);
+    }
+  }, [manualType, manualDongCode, manualDate, manualMaxPages, fetchStatus]);
+
+  /**
    * 증분 수집 트리거
    */
   const triggerIncrementalFetch = useCallback(async () => {
@@ -228,15 +321,27 @@ export default function FetchManagementPage() {
             >
               공공데이터 수집 관리
             </Typography>
-            <Button
-              variant="outlined"
-              startIcon={<Refresh />}
-              onClick={fetchStatus}
-              disabled={loading}
-              sx={{ borderRadius: 2 }}
-            >
-              새로고침
-            </Button>
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              <Button
+                variant="outlined"
+                startIcon={<SettingsIcon />}
+                onClick={() => setManualDialogOpen(true)}
+                disabled={triggering !== null || !status?.environment.hasPublicDataApiKey}
+                sx={{ borderRadius: 2 }}
+                aria-label="수동 수집 설정"
+              >
+                수동 수집
+              </Button>
+              <Button
+                variant="outlined"
+                startIcon={<Refresh />}
+                onClick={fetchStatus}
+                disabled={loading}
+                sx={{ borderRadius: 2 }}
+              >
+                새로고침
+              </Button>
+            </Box>
           </Box>
         </Container>
       </Box>
@@ -252,7 +357,7 @@ export default function FetchManagementPage() {
         {/* 수집 결과 메시지 */}
         {lastFetchResult && lastFetchResult.insertedCount > 0 && (
           <Alert severity="success" sx={{ mb: 3 }} onClose={() => setLastFetchResult(null)}>
-            {lastFetchResult.type === 'initial' ? '초기' : '증분'} 수집 완료: {lastFetchResult.insertedCount.toLocaleString()}개 데이터 저장됨
+            {lastFetchResult.type === 'initial' ? '초기' : lastFetchResult.type === 'incremental' ? '증분' : '수동'} 수집 완료: {lastFetchResult.insertedCount.toLocaleString()}개 데이터 저장됨
             (이전: {lastFetchResult.beforeCount.toLocaleString()} → 현재: {lastFetchResult.afterCount.toLocaleString()})
           </Alert>
         )}
@@ -265,7 +370,6 @@ export default function FetchManagementPage() {
         ) : status ? (
           <Grid container spacing={3}>
             {/* 환경 설정 상태 */}
-            {/* @ts-ignore */}
             <Grid item xs={12}>
               <Card>
                 <CardContent>
@@ -291,7 +395,6 @@ export default function FetchManagementPage() {
             </Grid>
 
             {/* 데이터베이스 통계 */}
-            {/* @ts-ignore */}
             <Grid item xs={12} md={4}>
               <Card>
                 <CardContent>
@@ -361,7 +464,6 @@ export default function FetchManagementPage() {
             </Grid>
 
             {/* 초기 수집 상태 */}
-            {/* @ts-ignore */}
             <Grid item xs={12} md={4}>
               <Card>
                 <CardContent>
@@ -414,6 +516,7 @@ export default function FetchManagementPage() {
                     startIcon={triggering === 'initial' ? <CircularProgress size={16} /> : <PlayArrow />}
                     onClick={triggerInitialFetch}
                     disabled={triggering !== null || !status.environment.hasPublicDataApiKey}
+                    aria-label={triggering === 'initial' ? '초기 수집 진행 중' : '초기 수집 시작'}
                     sx={{ borderRadius: 2 }}
                   >
                     {triggering === 'initial' ? '수집 중...' : '초기 수집 시작'}
@@ -423,7 +526,6 @@ export default function FetchManagementPage() {
             </Grid>
 
             {/* 증분 수집 상태 */}
-            {/* @ts-ignore */}
             <Grid item xs={12} md={4}>
               <Card>
                 <CardContent>
@@ -468,6 +570,7 @@ export default function FetchManagementPage() {
                     startIcon={triggering === 'incremental' ? <CircularProgress size={16} /> : <PlayArrow />}
                     onClick={triggerIncrementalFetch}
                     disabled={triggering !== null || !status.environment.hasPublicDataApiKey}
+                    aria-label={triggering === 'incremental' ? '증분 수집 진행 중' : '증분 수집 시작'}
                     sx={{ borderRadius: 2 }}
                   >
                     {triggering === 'incremental' ? '수집 중...' : '증분 수집 시작'}
@@ -479,7 +582,6 @@ export default function FetchManagementPage() {
             {/* 마지막 업데이트 시간 */}
             {lastUpdate && (
               <>
-                {/* @ts-ignore */}
                 <Grid item xs={12}>
                 <Paper
                   sx={{
@@ -501,6 +603,95 @@ export default function FetchManagementPage() {
           </Grid>
         ) : null}
       </Container>
+
+      {/* 수동 수집 다이얼로그 */}
+      <Dialog
+        open={manualDialogOpen}
+        onClose={() => setManualDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+        aria-labelledby="manual-fetch-dialog-title"
+      >
+        <DialogTitle id="manual-fetch-dialog-title">
+          수동 수집 설정
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, pt: 2 }}>
+            <FormControl fullWidth>
+              <InputLabel id="manual-type-label">수집 유형</InputLabel>
+              <Select
+                labelId="manual-type-label"
+                value={manualType}
+                label="수집 유형"
+                onChange={(e) => setManualType(e.target.value as 'dong' | 'date')}
+              >
+                <MenuItem value="dong">행정동별 수집</MenuItem>
+                <MenuItem value="date">날짜별 수집</MenuItem>
+              </Select>
+              <FormHelperText>
+                {manualType === 'dong' 
+                  ? '특정 행정동 코드로 상가 데이터를 수집합니다'
+                  : '특정 날짜 기준으로 변경된 상가 데이터를 수집합니다'}
+              </FormHelperText>
+            </FormControl>
+
+            {manualType === 'dong' ? (
+              <TextField
+                label="행정동 코드"
+                value={manualDongCode}
+                onChange={(e) => setManualDongCode(e.target.value)}
+                placeholder="예: 1168010100"
+                helperText="10자리 행정동 코드를 입력하세요"
+                fullWidth
+                required
+              />
+            ) : (
+              <TextField
+                label="날짜"
+                value={manualDate}
+                onChange={(e) => {
+                  const value = e.target.value.replace(/[^0-9]/g, '').slice(0, 8);
+                  setManualDate(value);
+                }}
+                placeholder="YYYYMMDD (예: 20250119)"
+                helperText="YYYYMMDD 형식으로 입력하세요 (예: 20250119)"
+                fullWidth
+                required
+                inputProps={{
+                  pattern: '[0-9]{8}',
+                  maxLength: 8,
+                }}
+              />
+            )}
+
+            <TextField
+              label="최대 페이지 수"
+              type="number"
+              value={manualMaxPages}
+              onChange={(e) => setManualMaxPages(parseInt(e.target.value) || 10)}
+              helperText="수집할 최대 페이지 수를 입력하세요 (기본값: 10)"
+              fullWidth
+              inputProps={{
+                min: 1,
+                max: 100,
+              }}
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setManualDialogOpen(false)}>
+            취소
+          </Button>
+          <Button
+            variant="contained"
+            onClick={triggerManualFetch}
+            disabled={triggering !== null || (manualType === 'dong' && !manualDongCode.trim()) || (manualType === 'date' && !manualDate.trim())}
+            startIcon={triggering === 'manual' ? <CircularProgress size={16} /> : <PlayArrow />}
+          >
+            {triggering === 'manual' ? '수집 중...' : '수집 시작'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
