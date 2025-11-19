@@ -669,7 +669,7 @@ export default function FetchManagementPage() {
               type="number"
               value={manualMaxPages}
               onChange={(e) => setManualMaxPages(parseInt(e.target.value) || 5)}
-              helperText="수집할 최대 페이지 수를 입력하세요 (기본값: 10)"
+              helperText="수집할 최대 페이지 수를 입력하세요 (기본값: 5, 최대: 10)"
               fullWidth
               inputProps={{
                 min: 1,
