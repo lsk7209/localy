@@ -45,7 +45,19 @@ export async function POST(request: NextRequest) {
     }
 
     // 요청 본문 파싱
-    const body = await request.json().catch(() => ({}));
+    let body: { type?: string; dongCode?: string; date?: string; maxPages?: number } = {};
+    try {
+      body = await request.json();
+    } catch (jsonError) {
+      logger.warn('Failed to parse request body', {
+        error: jsonError instanceof Error ? jsonError.message : String(jsonError),
+      });
+      return NextResponse.json(
+        { error: 'Invalid JSON in request body' },
+        { status: 400 }
+      );
+    }
+    
     const { type, dongCode, date, maxPages = 10 } = body;
 
     if (!type || (type !== 'dong' && type !== 'date')) {
@@ -68,6 +80,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // maxPages 유효성 검증
+    const validatedMaxPages = Math.max(1, Math.min(100, Number(maxPages) || 10));
 
     // 공공데이터 API 키 검증
     const publicDataApiKey = env.PUBLIC_DATA_API_KEY;
@@ -206,7 +221,7 @@ export async function POST(request: NextRequest) {
         }
         logger.info('Manual fetch by date', {
           date: formattedDate,
-          maxPages,
+          maxPages: validatedMaxPages,
         });
 
         let pageNo = 1;
