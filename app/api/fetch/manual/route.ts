@@ -81,8 +81,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // maxPages 유효성 검증
-    const validatedMaxPages = Math.max(1, Math.min(100, Number(maxPages) || 10));
+    // maxPages 유효성 검증 (Cloudflare Pages 타임아웃 방지를 위해 최대 10페이지로 제한)
+    const validatedMaxPages = Math.max(1, Math.min(10, Number(maxPages) || 5));
 
     // 공공데이터 API 키 검증
     const publicDataApiKey = env.PUBLIC_DATA_API_KEY;
@@ -119,11 +119,16 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    let totalInserted = 0;
-    let pagesProcessed = 0;
-    const errors: Array<{ page: number; error: string }> = [];
+    // 즉시 응답 반환을 위한 작업 ID 생성
+    const jobId = `manual-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    
+    // 백그라운드 작업 시작 (waitUntil 사용)
+    const processPromise = (async () => {
+      let totalInserted = 0;
+      let pagesProcessed = 0;
+      const errors: Array<{ page: number; error: string }> = [];
 
-    try {
+      try {
       if (type === 'dong') {
         // 행정동별 수집
         // dongCode는 이미 검증되었으므로 string으로 단언 가능
