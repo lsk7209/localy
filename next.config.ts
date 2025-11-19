@@ -21,6 +21,16 @@ const nextConfig: NextConfig = {
   // Cloudflare Pages 배포 최적화
   // 캐시 디렉토리는 배포에 포함하지 않음 (25 MiB 제한)
   webpack: (config, { isServer }) => {
+    // @opennextjs/cloudflare는 런타임에만 필요하므로 빌드 시점에 번들에서 제외
+    if (isServer) {
+      config.externals = config.externals || [];
+      if (Array.isArray(config.externals)) {
+        config.externals.push('@opennextjs/cloudflare');
+      } else if (typeof config.externals === 'object') {
+        config.externals['@opennextjs/cloudflare'] = 'commonjs @opennextjs/cloudflare';
+      }
+    }
+    
     if (!isServer) {
       // 클라이언트 빌드 최적화
       config.optimization = {

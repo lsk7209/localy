@@ -1,15 +1,29 @@
 import type { D1Database, KVNamespace, Queue } from '@cloudflare/workers-types';
 
 // OpenNext의 getCloudflareContext를 동적으로 import
+// 빌드 시점에 require를 사용하면 Next.js가 번들에 포함시키려고 시도하므로
+// 런타임에만 동적으로 로드하도록 수정
 let getCloudflareContextFn: (() => { env: CloudflareEnv }) | null = null;
-try {
-  // @ts-ignore: OpenNext의 getCloudflareContext는 런타임에만 사용 가능
-  const openNextCloudflare = require('@opennextjs/cloudflare');
-  if (typeof openNextCloudflare.getCloudflareContext === 'function') {
-    getCloudflareContextFn = openNextCloudflare.getCloudflareContext;
+
+// 런타임에만 실행되도록 함수 내부에서 초기화
+function initializeCloudflareContext() {
+  if (getCloudflareContextFn !== null) {
+    return; // 이미 초기화됨
   }
-} catch {
-  // @opennextjs/cloudflare를 사용할 수 없는 경우
+  
+  try {
+    // 런타임에만 require 사용 (빌드 시점에는 실행되지 않음)
+    if (typeof require !== 'undefined') {
+      // @ts-ignore: OpenNext의 getCloudflareContext는 런타임에만 사용 가능
+      const openNextCloudflare = require('@opennextjs/cloudflare');
+      if (typeof openNextCloudflare?.getCloudflareContext === 'function') {
+        getCloudflareContextFn = openNextCloudflare.getCloudflareContext;
+      }
+    }
+  } catch {
+    // @opennextjs/cloudflare를 사용할 수 없는 경우
+    getCloudflareContextFn = null;
+  }
 }
 
 /**
@@ -42,6 +56,9 @@ export interface CloudflareEnv {
  * Dashboard에서 설정한 바인딩 이름이 그대로 환경 변수 이름이 됩니다.
  */
 export function getCloudflareEnv(): CloudflareEnv {
+  // 런타임에 컨텍스트 초기화
+  initializeCloudflareContext();
+  
   // 1. @opennextjs/cloudflare의 getCloudflareContext 사용 (우선순위 1)
   if (getCloudflareContextFn) {
     try {
