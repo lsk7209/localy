@@ -1,19 +1,26 @@
-mport { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { drizzle } from 'drizzle-orm/d1';
 import * as schema from '@/db/schema';
 import { sql, count, eq, isNotNull, and, gte, desc } from 'drizzle-orm';
 import { checkAdminAPIRateLimit, createRateLimitResponse } from '@/workers/utils/rate-limit';
 import { getCloudflareEnv } from '../../types';
 
+// Korean string constants (encoding issue prevention)
 const RANGE_TODAY = String.fromCharCode(0xC624, 0xB298);
 const RANGE_7_DAYS = String.fromCharCode(0x0037, 0xC77C);
 const RANGE_30_DAYS = String.fromCharCode(0x0033, 0x0030, 0xC77C);
 const RANGE_90_DAYS = String.fromCharCode(0x0039, 0x0030, 0xC77C);
 
+/**
+ * Analytics data query API
+ * 
+ * Returns publishing performance, top pages, search/crawling status, etc.
+ */
 export async function GET(request: NextRequest) {
   try {
     const env = getCloudflareEnv();
     
+    // Rate Limit check (try-catch to work even if RATE_LIMIT KV is not available)
     let rateLimitResult;
     try {
       rateLimitResult = await checkAdminAPIRateLimit(env, request);
@@ -35,9 +42,10 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const range = searchParams.get('range') || RANGE_TODAY;
 
+    // Calculate date range
     const now = Date.now();
     const today = Math.floor(now / 1000);
-    const todayStart = today - (today % 86400);
+    const todayStart = today - (today % 86400); // today 00:00:00
     const todayStartDate = new Date(todayStart * 1000);
     
     let startDate: Date;
@@ -57,6 +65,7 @@ export async function GET(request: NextRequest) {
         break;
     }
 
+    // Set default values
     let totalPublished = { count: 0 };
     let thisWeekNew = { count: 0 };
     let periodUpdated = { count: 0 };
@@ -73,6 +82,7 @@ export async function GET(request: NextRequest) {
     }> = [];
     let publishedStats: Array<{ date: string; count: number }> = [];
 
+    // Process each query individually with try-catch
     try {
       totalPublished = (await db
         .select({ count: count() })
@@ -138,6 +148,7 @@ export async function GET(request: NextRequest) {
       topPages = [];
     }
 
+    // Format top pages
     const formattedTopPages = topPages.map((page) => {
       const slug = `${page.bizPlace.sido}-${page.bizPlace.sigungu}-${page.bizPlace.dong}-${page.bizPlace.category}`.toLowerCase();
       const url = `/shop/${slug}`;
@@ -148,16 +159,17 @@ export async function GET(request: NextRequest) {
       return {
         title,
         url,
-        pageviews: 0,
-        visitors: 0,
+        pageviews: 0, // TODO: Update when pageview tracking system is implemented
+        visitors: 0, // TODO: Update when visitor tracking system is implemented
         duration: String.fromCharCode(0x0030, 0xBD84),
-        source: 'Direct',
+        source: 'Direct', // TODO: Update when traffic source tracking system is implemented
         publishedAt: page.lastPublishedAt
           ? new Date((page.lastPublishedAt as unknown as number) * 1000).toISOString()
           : null,
       };
     });
 
+    // Search/crawling status (from KV)
     let sitemapStatus = 'unknown';
     let lastIndexed = null;
     const indexNowLogs: Array<{ time: string; status: 'success' | 'fail'; engine: string }> = [];
@@ -165,17 +177,21 @@ export async function GET(request: NextRequest) {
     const settingsKV = env.SETTINGS;
     if (settingsKV) {
       try {
+        // Sitemap status
         const sitemapStatusValue = await settingsKV.get('sitemap:status');
         sitemapStatus = sitemapStatusValue || 'unknown';
 
+        // Last indexed time
         const lastIndexedValue = await settingsKV.get('sitemap:last_indexed');
         if (lastIndexedValue) {
           lastIndexed = new Date(lastIndexedValue).toLocaleString('ko-KR');
         }
 
+        // IndexNow logs (last 10)
         const indexNowList = await settingsKV.list({ prefix: 'indexnow:' });
         const indexNowEntries = await Promise.all(
           indexNowList.keys.slice(0, 10).map(async (key) => {
+            // Capture settingsKV in closure (safe because inside type guard)
             try {
               const value = await settingsKV.get(key.name);
               if (!value) return null;
@@ -201,6 +217,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Publishing statistics for selected period (for chart)
     try {
       publishedStats = await db
         .select({
@@ -223,17 +240,21 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({
+      // Publishing performance
       publishStats: {
         totalPublished: totalPublished?.count || 0,
         thisWeekNew: thisWeekNew?.count || 0,
         periodUpdated: periodUpdated?.count || 0,
       },
+      // Top pages
       topPages: formattedTopPages,
+      // Search/crawling status
       searchStatus: {
         sitemapStatus,
         lastIndexed,
         indexNowLogs,
       },
+      // Chart data
       chartData: publishedStats.map((stat) => ({
         date: stat.date,
         count: stat.count,
