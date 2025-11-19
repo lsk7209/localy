@@ -6,15 +6,15 @@ import { checkAdminAPIRateLimit, createRateLimitResponse } from '@/workers/utils
 import { getCloudflareEnv } from '../../types';
 
 /**
- * Analytics ?怨쀬뵠??鈺곌퀬??API
+ * Analytics ??⑥щ턄???브퀗???API
  * 
- * 獄쏆뮉六??源껊궢, ?怨몄맄 ??륁뵠筌왖, 野꺜????쨌筌??怨밴묶 ?源놁뱽 獄쏆꼹???몃빍??
+ * ?꾩룇裕됵쭛??繹먭퍓沅? ??⑤챷留???瑜곷턄嶺뚯솘?, ?롪틵?????夷뚨춯???⑤객臾??繹먮냱諭??꾩룇瑗???紐껊퉵??
  */
 export async function GET(request: NextRequest) {
   try {
     const env = getCloudflareEnv();
     
-    // Rate Limit 筌ｋ똾寃?(RATE_LIMIT KV揶쎛 ??곷선????덉삂??롫즲嚥?try-catch)
+    // Rate Limit 嶺뚳퐢?얍칰?(RATE_LIMIT KV?띠럾? ??怨룹꽑?????됱굚??濡レ┣??try-catch)
     let rateLimitResult;
     try {
       rateLimitResult = await checkAdminAPIRateLimit(env, request);
@@ -34,11 +34,11 @@ export async function GET(request: NextRequest) {
 
     const db = drizzle(env.DB, { schema });
     const { searchParams } = new URL(request.url);
-    const range = searchParams.get('range') || '??삳뮎';
+    const range = searchParams.get('range') || '???노츓';
 
-    // ?醫롮? 甕곕뗄???④쑴沅?    const now = Date.now();
+    // ??ル‘? ?뺢퀡?????ｌ뫒亦?    const now = Date.now();
     const today = Math.floor(now / 1000);
-    const todayStart = today - (today % 86400); // ??삳뮎 00:00:00
+    const todayStart = today - (today % 86400); // ???노츓 00:00:00
     const todayStartDate = new Date(todayStart * 1000);
     
     let startDate: Date;
@@ -52,13 +52,13 @@ export async function GET(request: NextRequest) {
       case '90??:
         startDate = new Date((todayStart - 90 * 86400) * 1000);
         break;
-      case '??삳뮎':
+      case '???노츓':
       default:
         startDate = todayStartDate;
         break;
     }
 
-    // 疫꿸퀡??첎???쇱젟
+    // ?リ옇???泥????깆젧
     let totalPublished = { count: 0 };
     let thisWeekNew = { count: 0 };
     let periodUpdated = { count: 0 };
@@ -75,7 +75,7 @@ export async function GET(request: NextRequest) {
     }> = [];
     let publishedStats: Array<{ date: string; count: number }> = [];
 
-    // 揶??묒눖?곭몴?揶쏆뮆??怨몄몵嚥?try-catch嚥?筌ｌ꼶??    try {
+    // ???臾믩닑?怨?ご??띠룇裕???⑤챷紐드슖?try-catch??嶺뚳퐣瑗??    try {
       totalPublished = (await db
         .select({ count: count() })
         .from(schema.bizMeta)
@@ -140,7 +140,7 @@ export async function GET(request: NextRequest) {
       topPages = [];
     }
 
-    // ?怨몄맄 ??륁뵠筌왖 ?????
+    // ??⑤챷留???瑜곷턄嶺뚯솘? ?????
     const formattedTopPages = topPages.map((page) => {
       const slug = `${page.bizPlace.sido}-${page.bizPlace.sigungu}-${page.bizPlace.dong}-${page.bizPlace.category}`.toLowerCase();
       const url = `/shop/${slug}`;
@@ -151,34 +151,33 @@ export async function GET(request: NextRequest) {
       return {
         title,
         url,
-        pageviews: 0, // ?곕???鈺곌퀬????곕뗄????뽯뮞???닌뗭겱 ????낅쑓??꾨뱜
-        visitors: 0, // ?곕???獄쎻뫖揆???곕뗄????뽯뮞???닌뗭겱 ????낅쑓??꾨뱜
-        duration: '0??, // ?곕???筌ｋ?履??볦퍢 ?곕뗄????뽯뮞???닌뗭겱 ????낅쑓??꾨뱜
-        source: 'Direct', // ?곕????醫롮뿯野껋럥以??곕뗄????뽯뮞???닌뗭겱 ????낅쑓??꾨뱜
+        pageviews: 0, // ?怨????브퀗?????怨뺣뾼????戮?츩????뚮뿭寃??????낆몥??袁⑤콦
+        visitors: 0, // ?怨????꾩렮維뽪룇???怨뺣뾼????戮?츩????뚮뿭寃??????낆몥??袁⑤콦
+        duration: '0??, // ?怨???嶺뚳퐢?筌??蹂?뜟 ?怨뺣뾼????戮?츩????뚮뿭寃??????낆몥??袁⑤콦
+        source: 'Direct', // ?怨?????ル‘肉?뇦猿뗫윥餓??怨뺣뾼????戮?츩????뚮뿭寃??????낆몥??袁⑤콦
         publishedAt: page.lastPublishedAt
           ? new Date((page.lastPublishedAt as unknown as number) * 1000).toISOString()
           : null,
       };
     });
 
-    // 野꺜????쨌筌??怨밴묶 (KV?癒?퐣 揶쎛?紐꾩궎疫?
+    // ?롪틵?????夷뚨춯???⑤객臾?(KV??????띠럾??筌뤾쑴沅롧뼨?
     let sitemapStatus = 'unknown';
     let lastIndexed = null;
     const indexNowLogs: Array<{ time: string; status: 'success' | 'fail'; engine: string }> = [];
 
     if (settingsKV) {
       try {
-        // Sitemap ?怨밴묶
-        const sitemapStatusValue = await settingsKV.get('sitemap:status');
+        // Sitemap ??⑤객臾?        const sitemapStatusValue = await settingsKV.get('sitemap:status');
         sitemapStatus = sitemapStatusValue || 'unknown';
 
-        // 筌ㅼ뮄????깆뵥 ??볦퍢
+        // 嶺뚣끉裕????源녿데 ??蹂?뜟
         const lastIndexedValue = await settingsKV.get('sitemap:last_indexed');
         if (lastIndexedValue) {
           lastIndexed = new Date(lastIndexedValue).toLocaleString('ko-KR');
         }
 
-        // IndexNow 嚥≪뮄??(筌ㅼ뮄??10揶?
+        // IndexNow ?β돦裕??(嶺뚣끉裕??10??
         const indexNowList = await settingsKV.list({ prefix: 'indexnow:' });
         const indexNowEntries = await Promise.all(
           indexNowList.keys.slice(0, 10).map(async (key) => {
@@ -207,7 +206,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // ?醫뤾문??疫꿸퀗而???獄쏆뮉六?????(筌△뫂???
+    // ??ルㅎ臾???リ옇?쀨????꾩룇裕됵쭛??????(嶺뚢뼰維???
     try {
       publishedStats = await db
         .select({
@@ -230,21 +229,19 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({
-      // 獄쏆뮉六??源껊궢
-      publishStats: {
+      // ?꾩룇裕됵쭛??繹먭퍓沅?      publishStats: {
         totalPublished: totalPublished?.count || 0,
         thisWeekNew: thisWeekNew?.count || 0,
         periodUpdated: periodUpdated?.count || 0,
       },
-      // ?怨몄맄 ??륁뵠筌왖
+      // ??⑤챷留???瑜곷턄嶺뚯솘?
       topPages: formattedTopPages,
-      // 野꺜????쨌筌??怨밴묶
-      searchStatus: {
+      // ?롪틵?????夷뚨춯???⑤객臾?      searchStatus: {
         sitemapStatus,
         lastIndexed,
         indexNowLogs,
       },
-      // 筌△뫂???怨쀬뵠??
+      // 嶺뚢뼰維????⑥щ턄??
       chartData: publishedStats.map((stat) => ({
         date: stat.date,
         count: stat.count,
