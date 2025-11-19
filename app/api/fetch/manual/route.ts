@@ -233,7 +233,7 @@ export async function POST(request: NextRequest) {
         let pageNo = 1;
         let hasMore = true;
 
-        while (hasMore && pageNo <= maxPages) {
+        while (hasMore && pageNo <= validatedMaxPages) {
           try {
             const stores = await withTimeout(
               fetchStoreListByDate(formattedDate, publicDataApiKey, pageNo),
