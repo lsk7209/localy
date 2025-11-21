@@ -64,7 +64,15 @@ export async function POST(request: NextRequest) {
     
     const { type, dongCode, date, maxPages = 10 } = body;
 
+    logger.info('Manual fetch request received', {
+      type,
+      hasDongCode: !!dongCode,
+      hasDate: !!date,
+      maxPages,
+    });
+
     if (!type || (type !== 'dong' && type !== 'date')) {
+      logger.warn('Invalid type in manual fetch request', { type });
       return NextResponse.json(
         { error: 'Invalid type. Must be "dong" or "date"' },
         { status: 400 }
@@ -72,6 +80,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (type === 'dong' && !dongCode) {
+      logger.warn('Missing dongCode in manual fetch request', { type });
       return NextResponse.json(
         { error: 'dongCode is required when type is "dong"' },
         { status: 400 }
@@ -79,6 +88,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (type === 'date' && !date) {
+      logger.warn('Missing date in manual fetch request', { type });
       return NextResponse.json(
         { error: 'date is required when type is "date"' },
         { status: 400 }
@@ -87,10 +97,18 @@ export async function POST(request: NextRequest) {
 
     // maxPages 유효성 검증 (Cloudflare Pages 타임아웃 방지를 위해 최대 10페이지로 제한)
     const validatedMaxPages = Math.max(1, Math.min(10, Number(maxPages) || 5));
+    
+    logger.info('Manual fetch parameters validated', {
+      type,
+      validatedMaxPages,
+      dongCode: type === 'dong' ? dongCode : undefined,
+      date: type === 'date' ? date : undefined,
+    });
 
     // 공공데이터 API 키 검증
     const publicDataApiKey = env.PUBLIC_DATA_API_KEY;
     if (!publicDataApiKey) {
+      logger.warn('Public Data API key not configured in manual fetch API');
       return NextResponse.json(
         { error: 'Public Data API key not configured' },
         { status: 503 }
