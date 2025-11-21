@@ -23,6 +23,10 @@ import { chunkArray, D1_BATCH_LIMITS, withTimeout } from '@/workers/utils/perfor
  */
 export async function POST(request: NextRequest) {
   try {
+    logger.info('Manual fetch API called', {
+      timestamp: new Date().toISOString(),
+    });
+    
     const env = getCloudflareEnv();
     
     // API 키 검증 (선택사항)
@@ -381,7 +385,11 @@ export async function POST(request: NextRequest) {
     }
   } catch (error) {
     const errorObj = error instanceof Error ? error : new Error(String(error));
-    logger.error('Failed to trigger manual fetch', {}, errorObj);
+    logger.error('Failed to trigger manual fetch', {
+      error: errorObj.message,
+      stack: errorObj.stack,
+      name: errorObj.name,
+    }, errorObj);
     
     return NextResponse.json(
       {
